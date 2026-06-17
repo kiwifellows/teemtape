@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>teemtape — Mobile wireframe</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: var(--space-6) var(--space-4);
+      background: radial-gradient(circle at 50% 0%, #161c24, #0f1419 60%);
+      min-height: 100vh;
+    }
+
+    .page-head {
+      text-align: center;
+      margin-bottom: var(--space-5);
+    }
+
+    .page-head .brand {
+      justify-content: center;
+    }
+
+    .page-head p {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin: var(--space-2) 0 0;
+    }
+
+    /* Phone frame */
+    .phone {
+      width: 390px;
+      max-width: 100%;
+      height: 800px;
+      background: var(--bg);
+      border: 10px solid #05080b;
+      border-radius: 44px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 26px;
+      background: #05080b;
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
+      z-index: 5;
+    }
+
+    .screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* App header */
+    .m-header {
+      padding: 38px var(--space-4) var(--space-3);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-elevated);
+    }
+
+    .m-header .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .m-header .pill {
+      margin-top: var(--space-3);
+    }
+
+    /* Scroll list */
+    .m-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-3);
+    }
+
+    .m-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-3) var(--space-4);
+      margin-bottom: var(--space-3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .m-card .left .sym {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .m-card .left .coname {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .m-card .right {
+      text-align: right;
+    }
+
+    .m-card .price {
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .m-card .change {
+      font-size: 13px;
+    }
+
+    .m-card .notepip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .m-card .notepip.empty {
+      color: var(--text-faint);
+    }
+
+    /* Bottom tab bar */
+    .tabbar {
+      display: flex;
+      border-top: 1px solid var(--border);
+      background: var(--bg-elevated);
+      padding: var(--space-2) 0 var(--space-4);
+    }
+
+    .tabbar .tab {
+      flex: 1;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+
+    .tabbar .tab .ico {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 2px;
+    }
+
+    .tabbar .tab.active {
+      color: var(--accent);
+    }
+
+    /* Bottom sheet for notes */
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 8, 11, 0.6);
+      display: none;
+      z-index: 20;
+    }
+
+    .sheet-backdrop.open {
+      display: block;
+    }
+
+    .sheet {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg-card);
+      border-top-left-radius: var(--radius-lg);
+      border-top-right-radius: var(--radius-lg);
+      border-top: 1px solid var(--border-strong);
+      max-height: 78%;
+      display: flex;
+      flex-direction: column;
+      z-index: 21;
+      transform: translateY(100%);
+      transition: transform 0.18s ease;
+    }
+
+    .sheet.open {
+      transform: translateY(0);
+    }
+
+    .sheet .grabber {
+      width: 40px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--border-strong);
+      margin: var(--space-3) auto var(--space-2);
+    }
+
+    .sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--space-4) var(--space-3);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sheet-thread {
+      padding: var(--space-4);
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .note-item {
+      padding: var(--space-3) 0;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .note-item:last-child {
+      border-bottom: none;
+    }
+
+    .note-head {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: 12px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .note-author {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .note-source {
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+    }
+
+    .note-source.cli {
+      color: var(--warn);
+      border-color: var(--warn);
+    }
+
+    .note-source.web {
+      color: var(--text-muted);
+    }
+
+    .note-body {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .sheet-compose {
+      padding: var(--space-3) var(--space-4) var(--space-5);
+      border-top: 1px solid var(--border);
+    }
+
+    .sheet-compose textarea {
+      width: 100%;
+      min-height: 56px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      padding: var(--space-3);
+      margin-bottom: var(--space-2);
+      resize: none;
+    }
+
+    .share-mini {
+      margin: var(--space-3);
+      padding: var(--space-3);
+      background: var(--accent-soft);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+    }
+
+    .share-mini .url {
+      font-family: var(--font-mono);
+      color: var(--text);
+      word-break: break-all;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-head">
+    <div class="brand"><span class="mark">t</span> teemtape <span class="muted">/ mobile</span></div>
+    <p>React (web) now → React Native later. Same components &amp; tokens.</p>
+  </div>
+
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <!-- Header -->
+      <div class="m-header">
+        <div class="top">
+          <strong style="font-size:17px;">Watchlist</strong>
+          <button class="btn primary small">+ Add</button>
+        </div>
+        <span class="pill delayed"><span class="dot"></span> Delayed ~1 min</span>
+      </div>
+
+      <!-- Share link mini -->
+      <div class="share-mini">
+        <strong>Your shareable link</strong>
+        <div class="url" id="share-url-m"></div>
+      </div>
+
+      <!-- Stock list -->
+      <div class="m-list" id="m-list"></div>
+
+      <!-- Tab bar -->
+      <div class="tabbar">
+        <div class="tab active"><span class="ico">📈</span>Watchlist</div>
+        <div class="tab"><span class="ico">💬</span>Notes</div>
+        <div class="tab"><span class="ico">🔗</span>Share</div>
+        <div class="tab"><span class="ico">⚙️</span>Settings</div>
+      </div>
+    </div>
+
+    <!-- Bottom sheet (notes) -->
+    <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <div class="row gap-2">
+          <span class="sym" id="sheet-symbol" style="font-family:var(--font-mono);font-weight:700;">AAPL</span>
+          <span class="muted">notes</span>
+        </div>
+        <button class="btn ghost small" onclick="closeSheet()">✕</button>
+      </div>
+      <div class="sheet-thread" id="sheet-thread"></div>
+      <div class="sheet-compose">
+        <textarea placeholder="Add an anonymous note…"></textarea>
+        <div class="row spread">
+          <span class="faint" style="font-size:12px;">as <span class="num">anon-6f1ed0</span></span>
+          <button class="btn primary small">Post</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/wireframe.js"></script>
+  <script>
+    document.getElementById("share-url-m").textContent = SHARE_LINK;
+
+    function openSheet(symbol) {
+      document.getElementById("sheet-symbol").textContent = symbol;
+      document.getElementById("sheet-thread").innerHTML = buildNoteThread(symbol);
+      document.getElementById("sheet").classList.add("open");
+      document.getElementById("sheet-backdrop").classList.add("open");
+    }
+    function closeSheet() {
+      document.getElementById("sheet").classList.remove("open");
+      document.getElementById("sheet-backdrop").classList.remove("open");
+    }
+
+    const cards = MOCK_STOCKS.map((s) => {
+      const pipCls = s.notes > 0 ? "notepip" : "notepip empty";
+      const cls = s.change >= 0 ? "up" : "down";
+      const sign = s.change >= 0 ? "+" : "";
+      return `
+        <div class="m-card" onclick="openSheet('${s.symbol}')">
+          <div class="left">
+            <div class="sym">${s.symbol}</div>
+            <div class="coname">${s.name}</div>
+            <div class="${pipCls}">💬 ${s.notes} ${s.notes === 1 ? "note" : "notes"}</div>
+          </div>
+          <div class="right">
+            <div class="price">$${fmtPrice(s.price)}</div>
+            <div class="change num ${cls}">${sign}${s.pct.toFixed(2)}%</div>
+          </div>
+        </div>`;
+    });
+    document.getElementById("m-list").innerHTML = cards.join("");
+  </script>
+</body>
+</html>
