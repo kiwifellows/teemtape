@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>teemtape — Desktop wireframe</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+  <style>
+    .app {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: var(--space-5) var(--space-5) var(--space-7);
+    }
+
+    /* Top bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3) 0 var(--space-5);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: var(--space-5);
+    }
+
+    .topbar .actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    /* Share bar */
+    .share-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-3) var(--space-4);
+      margin-bottom: var(--space-5);
+    }
+
+    .share-bar .label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .share-bar .url {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Toolbar above table */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-3);
+    }
+
+    .search {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 7px 12px;
+      width: 280px;
+      color: var(--text-faint);
+      font-size: 14px;
+    }
+
+    /* Stock table */
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .table thead th {
+      text-align: left;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-faint);
+      font-weight: 600;
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table thead th.right,
+    .table tbody td.right {
+      text-align: right;
+    }
+
+    .table thead th.center,
+    .table tbody td.center {
+      text-align: center;
+    }
+
+    .table tbody td {
+      padding: var(--space-3) var(--space-4);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .table tbody tr:hover {
+      background: var(--bg-hover);
+    }
+
+    .sym {
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    .coname {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .note-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background: var(--bg-elevated);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .note-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+    }
+
+    .footer-note {
+      margin-top: var(--space-5);
+      font-size: 12px;
+      color: var(--text-faint);
+      text-align: center;
+    }
+
+    /* ---------- Note popup ---------- */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--overlay-scrim);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .overlay.open {
+      display: flex;
+    }
+
+    .popup {
+      width: 440px;
+      max-width: calc(100vw - 32px);
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .popup-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .popup-title {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-2);
+    }
+
+    .popup-title .sym {
+      font-size: 18px;
+    }
+
+    .popup-thread {
+      padding: var(--space-4);
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .note-item {
+      padding: var(--space-3) 0;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .note-item:last-child {
+      border-bottom: none;
+    }
+
+    .note-head {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .note-author {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .note-source {
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+    }
+
+    .note-source.cli {
+      color: var(--warn);
+      border-color: var(--warn);
+    }
+
+    .note-source.web {
+      color: var(--text-muted);
+    }
+
+    .note-body {
+      margin: 0;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .popup-compose {
+      padding: var(--space-4);
+      border-top: 1px solid var(--border);
+    }
+
+    .popup-compose textarea {
+      width: 100%;
+      min-height: 64px;
+      resize: vertical;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      padding: var(--space-3);
+      margin-bottom: var(--space-3);
+    }
+
+    .popup-compose .compose-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="brand">
+        <span class="mark">t</span>
+        teemtape <span class="muted">/ desktop</span>
+      </div>
+      <div class="actions">
+        <span class="pill delayed"><span class="dot"></span> Delayed ~1 min</span>
+        <button class="btn ghost small" onclick="toggleTheme()"><span data-theme-label>☀️ Light</span></button>
+        <button class="btn ghost small">Docs</button>
+        <button class="btn primary small">+ Add symbol</button>
+      </div>
+    </div>
+
+    <div class="wf-note">
+      <strong>Wireframe.</strong> Static mock data only. Prices come from a Cloudflare Worker
+      proxying the Polygon/Massive free API (intentionally delayed ~1 minute). Notes are anonymous
+      and stored in Cloudflare D1.
+    </div>
+
+    <!-- Personal share link -->
+    <div class="share-bar">
+      <span class="label">Your watchlist link</span>
+      <span class="url" id="share-url"></span>
+      <button class="btn small" onclick="fakeCopyShareLink(this)">Copy</button>
+      <button class="btn ghost small">New link</button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <h2 style="font-size:16px;">Watchlist</h2>
+      <div class="search">🔍 Search symbol or name…</div>
+    </div>
+
+    <!-- Stock table -->
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Company</th>
+          <th class="right">Last price</th>
+          <th class="right">Change</th>
+          <th class="center">Notes</th>
+          <th class="right"></th>
+        </tr>
+      </thead>
+      <tbody id="stock-rows"></tbody>
+    </table>
+
+    <p class="footer-note">
+      Not a trading tool. teemtape is for learning and commenting on stocks. Data is delayed and informational only.
+    </p>
+  </div>
+
+  <!-- Note popup -->
+  <div class="overlay" id="note-overlay">
+    <div class="popup" role="dialog" aria-modal="true" aria-labelledby="note-symbol">
+      <div class="popup-head">
+        <div class="popup-title">
+          <span class="sym" id="note-symbol">AAPL</span>
+          <span class="muted">notes</span>
+        </div>
+        <button class="btn ghost small" onclick="closeNotePopup()">✕</button>
+      </div>
+      <div class="popup-thread" id="note-thread"></div>
+      <div class="popup-compose">
+        <textarea placeholder="Add an anonymous note about this stock…"></textarea>
+        <div class="compose-foot">
+          <span class="faint" style="font-size:12px;">Posting anonymously as <span class="num">anon-6f1ed0</span></span>
+          <button class="btn primary small">Post note</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/wireframe.js"></script>
+  <script>
+    document.getElementById("share-url").textContent = SHARE_LINK;
+
+    const rows = MOCK_STOCKS.map((s) => {
+      const countCls = s.notes > 0 ? "badge-count" : "badge-count empty";
+      return `
+        <tr>
+          <td class="sym">${s.symbol}</td>
+          <td class="coname">${s.name}</td>
+          <td class="right num">$${fmtPrice(s.price)}</td>
+          <td class="right">${fmtChange(s)}</td>
+          <td class="center"><span class="${countCls}">${s.notes}</span></td>
+          <td class="right">
+            <button class="note-btn" onclick="openNotePopup('${s.symbol}')">💬 Note</button>
+          </td>
+        </tr>`;
+    });
+    document.getElementById("stock-rows").innerHTML = rows.join("");
+  </script>
+</body>
+</html>

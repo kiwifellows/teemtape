@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>teemtape — Wireframes</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+  <style>
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: var(--space-7) var(--space-5);
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: var(--space-7);
+    }
+
+    .hero .brand {
+      font-size: 28px;
+    }
+
+    .hero .brand .mark {
+      width: 40px;
+      height: 40px;
+      font-size: 22px;
+      border-radius: 12px;
+    }
+
+    .hero h1 {
+      font-size: 30px;
+      margin: var(--space-4) 0 var(--space-3);
+    }
+
+    .hero p {
+      color: var(--text-muted);
+      max-width: 620px;
+      margin: 0 auto;
+      font-size: 16px;
+    }
+
+    .hero .pills {
+      margin-top: var(--space-4);
+      display: flex;
+      gap: var(--space-2);
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4);
+      margin-bottom: var(--space-7);
+    }
+
+    .card {
+      display: block;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      color: var(--text);
+      transition: border-color 0.12s ease, transform 0.12s ease;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+      text-decoration: none;
+      transform: translateY(-2px);
+    }
+
+    .card .ico {
+      font-size: 28px;
+      display: block;
+      margin-bottom: var(--space-3);
+    }
+
+    .card h3 {
+      font-size: 17px;
+      margin-bottom: var(--space-2);
+    }
+
+    .card p {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .card .go {
+      margin-top: var(--space-4);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .section {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      margin-bottom: var(--space-5);
+    }
+
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: var(--space-4);
+    }
+
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-3);
+    }
+
+    .feature-list li {
+      display: flex;
+      gap: var(--space-2);
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .feature-list li .check {
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .flow .node {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      color: var(--text);
+    }
+
+    .flow .arrow {
+      color: var(--text-faint);
+    }
+
+    @media (max-width: 720px) {
+      .cards { grid-template-columns: 1fr; }
+      .feature-list { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row" style="justify-content:flex-end;margin-bottom:var(--space-4);">
+      <button class="btn ghost small" onclick="toggleTheme()"><span data-theme-label>☀️ Light</span></button>
+    </div>
+    <div class="hero">
+      <div class="brand"><span class="mark">t</span> teemtape</div>
+      <h1>Comment on stocks, together.</h1>
+      <p>
+        An open-source ticker app for leaving anonymous notes next to stock symbols — from the
+        web, mobile, or the CLI. It is a tool for learning how to build software incrementally with
+        agentic AI. <strong>Not a trading app.</strong>
+      </p>
+      <div class="pills">
+        <span class="pill delayed"><span class="dot"></span> Delayed ~1 min</span>
+        <span class="pill">Anonymous notes</span>
+        <span class="pill">Shareable links</span>
+        <span class="pill">Cloudflare Workers + D1</span>
+      </div>
+    </div>
+
+    <div class="wf-note">
+      <strong>Phase 1 — Wireframes for approval.</strong> These are clickable HTML mockups (no backend).
+      Open each one, try the note popups and share link, toggle <strong>light / dark</strong> mode
+      (top right), and approve the layout/flows before we start building the real app.
+    </div>
+
+    <div class="cards">
+      <a class="card" href="desktop.html">
+        <span class="ico">🖥️</span>
+        <h3>Desktop</h3>
+        <p>Stock table, note popup, and shareable watchlist link. Built first.</p>
+        <div class="go">View wireframe →</div>
+      </a>
+      <a class="card" href="mobile.html">
+        <span class="ico">📱</span>
+        <h3>Mobile</h3>
+        <p>Card list with a bottom-sheet for notes. React web now, React Native later.</p>
+        <div class="go">View wireframe →</div>
+      </a>
+      <a class="card" href="cli.html">
+        <span class="ico">⌨️</span>
+        <h3>CLI</h3>
+        <p>How AI agents read the watchlist and post notes alongside end users.</p>
+        <div class="go">View wireframe →</div>
+      </a>
+    </div>
+
+    <div class="section">
+      <h2>Features in scope</h2>
+      <ul class="feature-list">
+        <li><span class="check">✓</span> Table list of stocks</li>
+        <li><span class="check">✓</span> Backend connects to Polygon/Massive free API</li>
+        <li><span class="check">✓</span> Prices delayed ~1 minute (not real-time)</li>
+        <li><span class="check">✓</span> Anonymous notes on each symbol</li>
+        <li><span class="check">✓</span> Notes from agents (CLI) and users (web)</li>
+        <li><span class="check">✓</span> Note popup when viewing a symbol</li>
+        <li><span class="check">✓</span> Personal link with MD5 token in the URL</li>
+        <li><span class="check">✓</span> Shareable with friends / family / traders</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>How it fits together</h2>
+      <div class="flow">
+        <span class="node">CLI</span>
+        <span class="arrow">→</span>
+        <span class="node">Web / Mobile (React)</span>
+        <span class="arrow">→</span>
+        <span class="node">Cloudflare Worker API</span>
+        <span class="arrow">→</span>
+        <span class="node">D1 (notes)</span>
+        <span class="arrow">+</span>
+        <span class="node">Polygon/Massive (delayed quotes)</span>
+      </div>
+      <p class="muted" style="font-size:13px;margin-top:var(--space-4);margin-bottom:0;">
+        See <code>docs/architecture.md</code> for the full plan, including the wrangler.toml setup and
+        how the kiwifellows practices guides are applied.
+      </p>
+    </div>
+  </div>
+  <script src="assets/wireframe.js"></script>
+</body>
+</html>

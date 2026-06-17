@@ -1,0 +1,296 @@
+/*
+ * teemtape — shared wireframe design system
+ *
+ * These are low-to-mid fidelity wireframes used to agree on layout and flows
+ * before any application code is written. They are intentionally built with
+ * plain HTML/CSS/JS (no build step) so anyone can open the files directly in a
+ * browser. The same design tokens defined here will carry over to the real
+ * React app, keeping desktop, mobile, and (eventually) React Native consistent.
+ */
+
+:root {
+  /* Color tokens */
+  --bg: #0f1419;
+  --bg-elevated: #161c24;
+  --bg-card: #1b232d;
+  --bg-hover: #222c38;
+  --border: #2b3543;
+  --border-strong: #3a4757;
+
+  --text: #e6edf3;
+  --text-muted: #9aa7b5;
+  --text-faint: #66727f;
+
+  --accent: #4dd0a7;        /* teemtape brand green */
+  --accent-strong: #2fb88c;
+  --accent-soft: rgba(77, 208, 167, 0.12);
+
+  --up: #3fb950;            /* price gains */
+  --down: #f85149;          /* price losses */
+  --warn: #d9a441;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 16px;
+
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+
+  /* Surface helpers used by the device-frame pages (overridden in light mode) */
+  --page-bg: radial-gradient(circle at 50% 0%, #161c24, #0f1419 60%);
+  --bezel: #05080b;
+  --overlay-scrim: rgba(5, 8, 11, 0.6);
+}
+
+/*
+ * Light theme. Applied by setting data-theme="light" on <html>. Dark is the
+ * default (the :root tokens above). The toggle lives in wireframe.js so desktop
+ * and mobile can switch between the two modes from the same file.
+ */
+[data-theme="light"] {
+  --bg: #f6f8fa;
+  --bg-elevated: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #eef1f4;
+  --border: #d8dee4;
+  --border-strong: #c2cbd4;
+
+  --text: #1c2128;
+  --text-muted: #57606a;
+  --text-faint: #8c959f;
+
+  --accent: #1f9d76;
+  --accent-strong: #17815f;
+  --accent-soft: rgba(31, 157, 118, 0.12);
+
+  --up: #1a7f37;
+  --down: #cf222e;
+  --warn: #9a6700;
+
+  --shadow: 0 8px 30px rgba(140, 149, 159, 0.28);
+
+  --page-bg: radial-gradient(circle at 50% 0%, #ffffff, #eef1f4 60%);
+  --bezel: #20262d;
+  --overlay-scrim: rgba(28, 33, 40, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Brand ---------- */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.brand .mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #08110d;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.brand .muted {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ---------- Badges / pills ---------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+}
+
+.pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+
+.pill.delayed .dot {
+  background: var(--warn);
+}
+
+.badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.badge-count.empty {
+  background: var(--bg-elevated);
+  color: var(--text-faint);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn:hover {
+  background: var(--bg-hover);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #08110d;
+}
+
+.btn.primary:hover {
+  background: var(--accent-strong);
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.btn.ghost:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.btn.small {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+/* ---------- Price coloring ---------- */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.up {
+  color: var(--up);
+}
+
+.down {
+  color: var(--down);
+}
+
+/* ---------- Generic layout helpers ---------- */
+.muted {
+  color: var(--text-muted);
+}
+
+.faint {
+  color: var(--text-faint);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.gap-2 {
+  gap: var(--space-2);
+}
+
+.gap-3 {
+  gap: var(--space-3);
+}
+
+.spread {
+  justify-content: space-between;
+}
+
+/* ---------- Wireframe annotations ---------- */
+.wf-note {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: var(--space-4) 0;
+}
+
+.wf-note strong {
+  color: var(--text);
+}
