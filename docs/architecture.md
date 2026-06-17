@@ -1,9 +1,13 @@
-# teemtape — Architecture (planned)
+# teemtape — Architecture
 
-> Status: **Phase 1 — wireframes.** This document records the plan we are
-> validating with the wireframes in [`/wireframes`](../wireframes). No
-> application code exists yet. It will be implemented incrementally after the
-> wireframes are approved.
+> Status: **Phase 2 — building.** Wireframes (Phase 1) are done. The CLI (M1) and
+> the Cloudflare Worker API + D1 (M0) are now implemented behind one shared
+> contract. This document is the reference plan; where code exists it links to it.
+>
+> - Backend (M0): [`workers/api`](../workers/api) — Worker + D1 + KV.
+> - Shared contract: [`packages/api-client`](../packages/api-client).
+> - CLI (M1): [`packages/cli`](../packages/cli).
+> - Local mock of the contract: [`packages/mock-server`](../packages/mock-server).
 
 ## What teemtape is
 

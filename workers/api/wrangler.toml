@@ -1,0 +1,70 @@
+# teemtape API — Cloudflare Worker configuration.
+#
+# Follows docs/clouds/cloudflare.md. The TOP-LEVEL config is the dev/default
+# environment (so `wrangler dev` and `vitest` work with no flags); `[env.production]`
+# overrides it for deploys (`wrangler deploy --env production`).
+#
+# Secrets are NOT stored here. Set them with:
+#   wrangler secret put POLYGON_API_KEY                 # dev
+#   wrangler secret put POLYGON_API_KEY --env production # prod
+#
+# Replace the placeholder resource ids after creating resources:
+#   wrangler d1 create teemtape-db          -> copy database_id
+#   wrangler kv:namespace create QUOTES_CACHE -> copy id
+
+name = "teemtape-api"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+workers_dev = true
+# account_id is read from the CLOUDFLARE_ACCOUNT_ID env var (or set it here for deploys):
+# account_id = "{{CF_ACCOUNT_ID}}"
+
+[observability]
+enabled = true
+
+# Non-secret config (see [env.production.vars] for prod overrides).
+[vars]
+QUOTES_PROVIDER = "sample"          # "sample" (no key needed) | "polygon"
+QUOTE_DELAY_SECONDS = "60"          # intentionally delayed ~1 minute
+WEB_URL = "http://localhost:5173"   # used to build share links
+
+[[d1_databases]]
+binding = "DB"
+database_name = "teemtape-db"
+database_id = "00000000-0000-0000-0000-000000000000"  # replace with `wrangler d1 create` output
+migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "QUOTES_CACHE"
+id = "0000000000000000000000000000abcd"                 # replace with `wrangler kv:namespace create` output
+
+# --- Production environment -------------------------------------------------
+[env.production]
+workers_dev = false
+# route = "api.teemtape.app/*"
+# zone_id = "{{CF_ZONE_ID_PROD}}"
+
+[env.production.observability]
+enabled = true
+
+[env.production.vars]
+QUOTES_PROVIDER = "polygon"
+QUOTE_DELAY_SECONDS = "60"
+WEB_URL = "https://teemtape.app"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "teemtape-db"
+database_id = "00000000-0000-0000-0000-000000000000"   # replace with prod D1 id
+migrations_dir = "migrations"
+
+[[env.production.kv_namespaces]]
+binding = "QUOTES_CACHE"
+id = "0000000000000000000000000000abcd"                 # replace with prod KV id
+
+# --- Not used yet ----------------------------------------------------------
+# teemtape uses D1 (notes/watchlists) + KV (quote cache). We do NOT use R2
+# object storage today; add it only if/when we have a real need:
+# [[r2_buckets]]
+# binding = "MY_R2_BUCKET"
+# bucket_name = "teemtape-r2-bucket"

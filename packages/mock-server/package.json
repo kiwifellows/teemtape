@@ -1,0 +1,14 @@
+{
+  "name": "@teemtape/mock-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dependency-free in-memory mock of the teemtape Worker API for local CLI/web testing.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "teemtape-mock": "./src/index.mjs"
+  },
+  "scripts": {
+    "start": "node src/index.mjs"
+  }
+}

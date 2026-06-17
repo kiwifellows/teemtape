@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+.DS_Store
+coverage/
+
+# Cloudflare Workers local state (miniflare D1/KV, etc.)
+.wrangler/
+
+
+# local CLI config that may contain a watchlist token
+.config/teemtape/

@@ -1,0 +1,28 @@
+{
+  "name": "@teemtape/cli",
+  "version": "0.0.0",
+  "description": "teemtape CLI — list stocks and post anonymous notes from the terminal.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "teemtape": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "node --test",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@teemtape/api-client": "*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  }
+}
