@@ -94,3 +94,32 @@ function fakeCopyShareLink(btn) {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeNotePopup();
 });
+
+/* ---------- Light / dark theme ---------- */
+function applyTheme(theme) {
+  const mode = theme === "light" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", mode);
+  try {
+    localStorage.setItem("teemtape-theme", mode);
+  } catch (e) {
+    /* ignore: file:// or private mode */
+  }
+  document.querySelectorAll("[data-theme-label]").forEach((el) => {
+    el.textContent = mode === "light" ? "🌙 Dark" : "☀️ Light";
+  });
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme");
+  applyTheme(current === "light" ? "dark" : "light");
+}
+
+(function initTheme() {
+  let saved = "dark";
+  try {
+    saved = localStorage.getItem("teemtape-theme") || "dark";
+  } catch (e) {
+    /* ignore */
+  }
+  applyTheme(saved);
+})();

@@ -11,7 +11,7 @@
       flex-direction: column;
       align-items: center;
       padding: var(--space-6) var(--space-4);
-      background: radial-gradient(circle at 50% 0%, #161c24, #0f1419 60%);
+      background: var(--page-bg);
       min-height: 100vh;
     }
 
@@ -36,7 +36,7 @@
       max-width: 100%;
       height: 800px;
       background: var(--bg);
-      border: 10px solid #05080b;
+      border: 10px solid var(--bezel);
       border-radius: 44px;
       box-shadow: var(--shadow);
       overflow: hidden;
@@ -52,7 +52,7 @@
       transform: translateX(-50%);
       width: 150px;
       height: 26px;
-      background: #05080b;
+      background: var(--bezel);
       border-bottom-left-radius: 16px;
       border-bottom-right-radius: 16px;
       z-index: 5;
@@ -167,7 +167,7 @@
     .sheet-backdrop {
       position: absolute;
       inset: 0;
-      background: rgba(5, 8, 11, 0.6);
+      background: var(--overlay-scrim);
       display: none;
       z-index: 20;
     }
@@ -313,7 +313,10 @@
       <div class="m-header">
         <div class="top">
           <strong style="font-size:17px;">Watchlist</strong>
-          <button class="btn primary small">+ Add</button>
+          <div class="row gap-2">
+            <button class="btn ghost small" onclick="toggleTheme()"><span data-theme-label>☀️ Light</span></button>
+            <button class="btn primary small">+ Add</button>
+          </div>
         </div>
         <span class="pill delayed"><span class="dot"></span> Delayed ~1 min</span>
       </div>

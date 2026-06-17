@@ -37,7 +37,9 @@ cd wireframes && python3 -m http.server 8080
 | CLI | [`wireframes/cli.html`](wireframes/cli.html) | How agents read the watchlist and post notes |
 
 Try the **💬 Note** buttons and the **Copy** on the share link — the popups and
-mock data are interactive.
+mock data are interactive. Desktop, mobile, and the gallery have a **☀️ Light /
+🌙 Dark** toggle (top right) so you can review both themes; the choice is
+remembered across pages.
 
 ## Features (planned)
 
