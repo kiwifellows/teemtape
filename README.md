@@ -7,12 +7,46 @@ learning how to build software **incrementally with agentic AI**.
 > **Not a trading app.** There is no order entry or money movement — just delayed
 > quotes and notes. Data is informational only.
 
-## Status: Phase 1 — Wireframes
+## Status
 
-We are starting with wireframes/HTML mockups for **desktop, mobile, and CLI** so
-the layout and flows can be approved before any app code is written
-(per the kiwifellows [feature-development practices] — design before code, ship
-increments).
+- **Phase 1 — Wireframes:** done ([`/wireframes`](wireframes)).
+- **Phase 2 — Build (in progress):** the **CLI** (milestone M1) is the first
+  client, so we can exercise the API early. See [`docs/roadmap.md`](docs/roadmap.md).
+
+### Try the CLI now
+
+The CLI works end-to-end today against an in-memory **mock API** (no Cloudflare or
+API keys needed):
+
+```bash
+npm install
+npm run build
+npm run mock            # terminal 1: mock API on http://localhost:8787
+
+# terminal 2:
+node packages/cli/dist/index.js list --token 6f1ed002ab5595859014ebf0951522d9
+node packages/cli/dist/index.js notes NVDA --token 6f1ed002ab5595859014ebf0951522d9
+node packages/cli/dist/index.js init      # create your own watchlist + token
+```
+
+See [`packages/cli/README.md`](packages/cli/README.md) for all commands.
+
+## Repository layout
+
+```
+teemtape/
+├── wireframes/            # Phase 1 HTML mockups (no build step)
+├── docs/                  # architecture, roadmap, CLI options
+└── packages/
+    ├── api-client/        # @teemtape/api-client — shared types + typed API client
+    ├── cli/               # @teemtape/cli — Commander.js CLI (milestone M1)
+    └── mock-server/       # dependency-free in-memory API mock for local testing
+```
+
+This is an npm-workspaces monorepo. The real Cloudflare Worker API + D1 (M0) and
+the React apps (M2+) will be added under `workers/` and `apps/` as we build them.
+
+## Wireframes
 
 ### View the wireframes
 
