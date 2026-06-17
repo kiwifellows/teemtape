@@ -74,6 +74,10 @@ will be added with the Worker in Phase 2.
 
 - [`docs/architecture.md`](docs/architecture.md) — system plan, data model, API,
   and how the kiwifellows practice guides are applied.
+- [`docs/roadmap.md`](docs/roadmap.md) — development milestones and priority for
+  the CLI, desktop, and mobile surfaces.
+- [`docs/cli-options.md`](docs/cli-options.md) — options for scaffolding the CLI
+  (language, framework, distribution) with a recommendation, for approval.
 
 [Cloudflare skills guide]: https://github.com/kiwifellows/ai/blob/main/docs/clouds/cloudflare.md
 [feature-development practices]: https://github.com/kiwifellows/ai/blob/main/docs/practices/feature-development.md
