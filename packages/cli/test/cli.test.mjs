@@ -9,11 +9,20 @@ const run = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
 const bin = join(here, "..", "dist", "index.js");
 
-// Isolate config-file lookups to an empty dir so tests are deterministic.
-const ISOLATED = { XDG_CONFIG_HOME: join(here, "__no_config__"), NO_COLOR: "1" };
+// Start from the ambient env but strip any teemtape settings so tests are
+// deterministic regardless of the shell they run in, then isolate the config dir.
+function baseEnv() {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key.startsWith("TEEMTAPE_")) delete env[key];
+  }
+  env.XDG_CONFIG_HOME = join(here, "__no_config__");
+  env.NO_COLOR = "1";
+  return env;
+}
 
 function cli(args, env = {}) {
-  return run("node", [bin, ...args], { env: { ...process.env, ...ISOLATED, ...env } });
+  return run("node", [bin, ...args], { env: { ...baseEnv(), ...env } });
 }
 
 test("config: environment variable sets the API url", async () => {
