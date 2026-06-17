@@ -10,26 +10,31 @@ learning how to build software **incrementally with agentic AI**.
 ## Status
 
 - **Phase 1 — Wireframes:** done ([`/wireframes`](wireframes)).
-- **Phase 2 — Build (in progress):** the **CLI** (milestone M1) is the first
-  client, so we can exercise the API early. See [`docs/roadmap.md`](docs/roadmap.md).
+- **Phase 2 — Build (in progress):**
+  - **M0 — backend:** done — Cloudflare Worker + D1 + KV ([`workers/api`](workers/api)).
+  - **M1 — CLI:** done — first client, built on the shared contract ([`packages/cli`](packages/cli)).
+  - Next: iterate on the CLI, then the desktop React app (M2). See [`docs/roadmap.md`](docs/roadmap.md).
 
-### Try the CLI now
+### Try it now
 
-The CLI works end-to-end today against an in-memory **mock API** (no Cloudflare or
-API keys needed):
+Run the real backend locally (serves deterministic **sample** quotes with no API key):
 
 ```bash
 npm install
 npm run build
-npm run mock            # terminal 1: mock API on http://localhost:8787
 
-# terminal 2:
-node packages/cli/dist/index.js list --token 6f1ed002ab5595859014ebf0951522d9
-node packages/cli/dist/index.js notes NVDA --token 6f1ed002ab5595859014ebf0951522d9
-node packages/cli/dist/index.js init      # create your own watchlist + token
+# terminal 1 — the Worker API (Cloudflare workerd via wrangler) on :8787
+cd workers/api && npm run migrate:local && npm run dev
+
+# terminal 2 — drive it with the CLI
+TEEMTAPE_API_URL=http://127.0.0.1:8787 node packages/cli/dist/index.js init
+TEEMTAPE_API_URL=http://127.0.0.1:8787 node packages/cli/dist/index.js add NVDA
+TEEMTAPE_API_URL=http://127.0.0.1:8787 node packages/cli/dist/index.js list
 ```
 
-See [`packages/cli/README.md`](packages/cli/README.md) for all commands.
+Prefer no Cloudflare toolchain? A dependency-free **mock** implements the same
+contract: run `npm run mock` (seeds watchlist token `6f1ed002ab5595859014ebf0951522d9`)
+and point the CLI at `http://localhost:8787`. See [`packages/cli/README.md`](packages/cli/README.md).
 
 ## Repository layout
 
@@ -37,14 +42,16 @@ See [`packages/cli/README.md`](packages/cli/README.md) for all commands.
 teemtape/
 ├── wireframes/            # Phase 1 HTML mockups (no build step)
 ├── docs/                  # architecture, roadmap, CLI options
-└── packages/
-    ├── api-client/        # @teemtape/api-client — shared types + typed API client
-    ├── cli/               # @teemtape/cli — Commander.js CLI (milestone M1)
-    └── mock-server/       # dependency-free in-memory API mock for local testing
+├── packages/
+│   ├── api-client/        # @teemtape/api-client — shared types + typed API client
+│   ├── cli/               # @teemtape/cli — Commander.js CLI (M1)
+│   └── mock-server/       # dependency-free in-memory API mock for local testing
+└── workers/
+    └── api/               # @teemtape/api — Cloudflare Worker + D1 + KV (M0)
 ```
 
-This is an npm-workspaces monorepo. The real Cloudflare Worker API + D1 (M0) and
-the React apps (M2+) will be added under `workers/` and `apps/` as we build them.
+This is an npm-workspaces monorepo. The React apps (M2+) will be added under
+`apps/` as we build them.
 
 ## Wireframes
 
