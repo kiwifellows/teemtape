@@ -1,6 +1,6 @@
 {
   "name": "@teemtape/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "teemtape CLI — list stocks and post anonymous notes from the terminal.",
   "license": "MIT",
   "type": "module",
@@ -24,5 +24,8 @@
     "@types/node": "^20.12.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

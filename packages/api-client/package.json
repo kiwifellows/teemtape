@@ -1,6 +1,6 @@
 {
   "name": "@teemtape/api-client",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Shared typed client + types for the teemtape Worker API.",
   "license": "MIT",
   "type": "module",
@@ -23,5 +23,8 @@
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

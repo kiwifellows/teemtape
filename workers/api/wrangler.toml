@@ -35,17 +35,17 @@ crons = ["0 */12 * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "teemtape-db"
-database_id = "00000000-0000-0000-0000-000000000000"  # replace with `wrangler d1 create` output
+database_id = "276e4395-0d63-4bd3-bf2b-6a65235ba440"
 migrations_dir = "migrations"
 
 [[kv_namespaces]]
 binding = "QUOTES_CACHE"
-id = "0000000000000000000000000000abcd"                 # replace with `wrangler kv:namespace create` output
+id = "41d888270da045619243fce144418046"
 
 # --- Production environment -------------------------------------------------
 [env.production]
 workers_dev = false
-# route = "api.teemtape.app/*"
+# route = "api.teemtape.com/*"
 # zone_id = "{{CF_ZONE_ID_PROD}}"
 
 [env.production.observability]
@@ -54,8 +54,8 @@ enabled = true
 [env.production.vars]
 QUOTES_PROVIDER = "polygon"
 QUOTE_DELAY_SECONDS = "60"
-WEB_URL = "https://teemtape.app"
-SEC_USER_AGENT = "teemtape-api symbols-sync contact@teemtape.app"
+WEB_URL = "https://www.teemtape.com"
+SEC_USER_AGENT = "teemtape-api symbols-sync contact@teemtape.com"
 
 [env.production.triggers]
 crons = ["0 */12 * * *"]
@@ -63,12 +63,12 @@ crons = ["0 */12 * * *"]
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "teemtape-db"
-database_id = "00000000-0000-0000-0000-000000000000"   # replace with prod D1 id
+database_id = "276e4395-0d63-4bd3-bf2b-6a65235ba440"
 migrations_dir = "migrations"
 
 [[env.production.kv_namespaces]]
 binding = "QUOTES_CACHE"
-id = "0000000000000000000000000000abcd"                 # replace with prod KV id
+id = "41d888270da045619243fce144418046"
 
 # --- Not used yet ----------------------------------------------------------
 # teemtape uses D1 (notes/watchlists) + KV (quote cache). We do NOT use R2

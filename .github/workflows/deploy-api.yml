@@ -1,0 +1,65 @@
+name: Deploy API (production)
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-api-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    name: Deploy Worker to Cloudflare production
+    defaults:
+      run:
+        working-directory: workers/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Build shared API client
+        run: npm run build --workspace @teemtape/api-client
+        working-directory: .
+
+      - name: Test API Worker
+        run: npm run test --workspace @teemtape/api
+        working-directory: .
+
+      - name: Apply D1 migrations (remote)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/api
+          environment: production
+          command: d1 migrations apply teemtape-db --remote
+
+      - name: Deploy to Cloudflare production
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/api
+          environment: production
+          command: deploy --env production
+          secrets: |
+            POLYGON_API_KEY
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}

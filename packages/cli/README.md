@@ -55,9 +55,9 @@ Resolved with precedence: **CLI flags > env vars > config file > defaults**.
 
 | Setting | Flag | Env var | Default |
 | ------- | ---- | ------- | ------- |
-| API URL | `--api-url` | `TEEMTAPE_API_URL` | `http://localhost:8787` |
+| API URL | `--api-url` | `TEEMTAPE_API_URL` | `https://api.teemtape.com` |
 | Token | `--token` | `TEEMTAPE_TOKEN` | (none) |
-| Web URL | `--web-url` | `TEEMTAPE_WEB_URL` | `https://teemtape.app` |
+| Web URL | `--web-url` | `TEEMTAPE_WEB_URL` | `https://www.teemtape.com` |
 
 The config file lives at `~/.config/teemtape/config.json` (or
 `$XDG_CONFIG_HOME/teemtape/config.json`) and is written with `0600` perms. The
