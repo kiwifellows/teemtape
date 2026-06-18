@@ -3,7 +3,61 @@
 Teemtape keeps a [CHANGELOG.md](../CHANGELOG.md) at the repo root. Entries are
 added automatically when a **GitHub release is published** on `main`.
 
-## Current setup (PR-based, on release)
+## Automated release + npm publish
+
+Workflow: [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+
+**Trigger:** manual — run it from the **Actions → Release → Run workflow** menu.
+
+**Inputs:**
+
+- `release_type`: `patch` (default), `minor`, or `major` — the semver bump applied
+  to the current version.
+- `version`: an explicit version such as `1.2.3` that overrides `release_type`.
+- `dry_run`: preview the bump and run `npm publish --dry-run` without pushing,
+  tagging, or publishing.
+
+**What it does:**
+
+1. Computes the next version. The current version is the highest of the latest
+   `v*` git tag and every `package.json` version in the workspace.
+2. Writes that version to **all** `package.json` files (root, `apps/web`,
+   `packages/*`, `workers/*`) and rewrites internal `@teemtape/*` dependency
+   ranges to `^<version>` via [`scripts/version.mjs`](../scripts/version.mjs), then
+   refreshes `package-lock.json`.
+3. Builds and tests the publishable packages (`@teemtape/api-client`,
+   `@teemtape/cli`).
+4. Commits the bump to `main`, creates an annotated tag `v<version>`, and pushes.
+5. Publishes `@teemtape/api-client` and `@teemtape/cli` to npm (with provenance).
+   `packages/mock-server` is intentionally **not** published. The publish step is
+   idempotent — it skips a package if that exact version already exists on npm.
+6. Creates the GitHub release with auto-generated notes.
+
+### Requirements
+
+- **`NPM_PACKAGE_TOKEN`** secret — an npm automation token with publish access to
+  the `@teemtape` scope. Used as `NODE_AUTH_TOKEN` when publishing.
+- **`contents: write`** + **`id-token: write`** permissions (already configured) so
+  the workflow can push to `main` and attach npm provenance.
+- Optional **`RELEASE_TOKEN`** secret (a PAT with `repo` scope). When set, the
+  GitHub release is created with it so the `release: published` event can trigger
+  the changelog workflow below. Without it the release is still created using the
+  default token, but releases created by the default `GITHUB_TOKEN` do **not**
+  re-trigger other `release`-event workflows (a GitHub safeguard against loops).
+- If `main` is branch-protected, allow **github-actions[bot]** (or the
+  `RELEASE_TOKEN` identity) to bypass so the version-bump push succeeds.
+
+### Manual version helper
+
+[`scripts/version.mjs`](../scripts/version.mjs) can be run locally:
+
+```bash
+node scripts/version.mjs current          # print the current version
+node scripts/version.mjs next minor       # print the next version for a bump type
+node scripts/version.mjs set 1.2.3        # write 1.2.3 across all package.json files
+```
+
+## Changelog setup (PR-based, on release)
 
 Workflow: [`.github/workflows/changelog.yml`](../.github/workflows/changelog.yml)
 
@@ -100,10 +154,12 @@ Best for small teams that rarely release.
 
 ## Recommendation for teemtape
 
-**Stick with the current PR-based workflow** while the project is early and commit
-messages are mixed. It matches “update on release from merged PRs” without forcing
-conventional commits.
+Use the **automated release workflow** (top of this doc) to bump versions, tag,
+publish `@teemtape/cli` + `@teemtape/api-client` to npm, and cut the GitHub
+release in one step. The **PR-based changelog workflow** then keeps
+`CHANGELOG.md` up to date from merged PR titles — no conventional commits
+required.
 
-When you start versioning packages for npm (`@teemtape/cli`, etc.) and want semver
-automation, consider **release-please** (Option A) or **git-cliff** (Option B)
-with squash-merge + conventional PR titles.
+If you later want a reviewed changelog/version bump *before* tagging, consider
+**release-please** (Option A) or **git-cliff** (Option B) with squash-merge +
+conventional PR titles.
