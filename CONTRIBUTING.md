@@ -16,7 +16,7 @@ learning project for agentic AI development.
 
 ## Prerequisites
 
-- **Node.js** 18 or newer (Node 20 is used in CI)
+- **Node.js** 18 or newer (Node 24 is used in CI)
 - **npm** (workspaces monorepo — install from the repo root)
 - For Worker development: [Wrangler](https://developers.cloudflare.com/workers/wrangler/) (installed as a dev dependency in `workers/api`)
 
