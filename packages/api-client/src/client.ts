@@ -8,7 +8,7 @@ import type {
 } from "./types.js";
 
 export interface ApiClientOptions {
-  /** Base URL of the Worker API, e.g. http://localhost:8787 */
+  /** Base URL of the Worker API, e.g. https://api.teemtape.com */
   baseUrl: string;
   /** Optional default watchlist token used by watchlist/note calls. */
   token?: string;

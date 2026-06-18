@@ -111,6 +111,11 @@ will be added with the Worker in Phase 2.
 2. **Phase 2 — Build**: Cloudflare Worker API + D1, desktop React app, CLI.
 3. **Phase 3**: mobile web polish, then React Native.
 
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local setup, development commands, pull
+request guidelines, and how CI deploys the API on merges to `main`.
+
 ## Documentation
 
 - [`docs/architecture.md`](docs/architecture.md) — system plan, data model, API,

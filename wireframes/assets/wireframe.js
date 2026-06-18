@@ -36,7 +36,7 @@ const MOCK_NOTES = {
   ],
 };
 
-const SHARE_LINK = "https://teemtape.app/w/6f1ed002ab5595859014ebf0951522d9";
+const SHARE_LINK = "https://www.teemtape.com/w/6f1ed002ab5595859014ebf0951522d9";
 
 function fmtPrice(n) {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

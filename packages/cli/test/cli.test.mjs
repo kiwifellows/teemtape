@@ -45,7 +45,7 @@ test("config: token is masked, never printed in full", async () => {
   assert.ok(!stdout.includes(token));
 });
 
-test("default api url is localhost:8787", async () => {
+test("default api url is api.teemtape.com", async () => {
   const { stdout } = await cli(["--json", "config"]);
-  assert.equal(JSON.parse(stdout).apiUrl, "http://localhost:8787");
+  assert.equal(JSON.parse(stdout).apiUrl, "https://api.teemtape.com");
 });

@@ -16,8 +16,8 @@ export interface ConfigFlags {
 }
 
 const DEFAULTS = {
-  apiUrl: "http://localhost:8787",
-  webUrl: "https://teemtape.app",
+  apiUrl: "https://api.teemtape.com",
+  webUrl: "https://www.teemtape.com",
 };
 
 /** Path to the persisted config file (XDG-aware, falls back to ~/.config). */
