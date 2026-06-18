@@ -1,0 +1,23 @@
+{
+  "name": "teemtape-skills",
+  "owner": {
+    "name": "kiwifellows"
+  },
+  "metadata": {
+    "description": "Agent skills for interacting with teemtape stock watchlists and notes",
+    "version": "1.0.0",
+    "pluginRoot": "."
+  },
+  "plugins": [
+    {
+      "name": "teemtape",
+      "source": ".cursor-plugin/teemtape",
+      "description": "Use the teemtape CLI to read delayed quotes and post anonymous stock notes",
+      "version": "1.0.0",
+      "license": "MIT",
+      "keywords": ["teemtape", "stocks", "cli", "watchlist", "notes"],
+      "category": "developer-tools",
+      "tags": ["finance", "cli", "agents"]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "teemtape",
+  "version": "1.0.0",
+  "description": "Agent skills for the teemtape CLI — list stocks, read notes, post anonymous commentary",
+  "skills": "../../skills/teemtape-cli"
+}

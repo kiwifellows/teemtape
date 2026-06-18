@@ -1,0 +1,14 @@
+{
+  "name": "teemtape-skills",
+  "owner": {
+    "name": "kiwifellows"
+  },
+  "plugins": [
+    {
+      "name": "teemtape",
+      "source": "./teemtape",
+      "description": "Use the teemtape CLI to read delayed quotes and post anonymous stock notes",
+      "version": "1.0.0"
+    }
+  ]
+}
