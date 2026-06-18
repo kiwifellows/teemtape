@@ -7,6 +7,7 @@ import { initCommand } from "./commands/init.js";
 import { listCommand } from "./commands/list.js";
 import { noteCommand } from "./commands/note.js";
 import { notesCommand } from "./commands/notes.js";
+import { searchCommand } from "./commands/search.js";
 import { shareCommand } from "./commands/share.js";
 import { createContext, type Context, type GlobalFlags } from "./context.js";
 import { c } from "./output.js";
@@ -74,6 +75,19 @@ program
   );
 
 program
+  .command("search")
+  .argument("[query]", "search ticker or company name (substring match)")
+  .description("search the SEC symbol catalog by ticker or company name")
+  .option("--symbol <text>", "filter by ticker substring only")
+  .option("--name <text>", "filter by company name substring only")
+  .option("--limit <n>", "max results to return (default 20, max 100)")
+  .option("--offset <n>", "skip first n matches (for paging)")
+  .option("--sort <field>", "sort by ticker or title", "ticker")
+  .action(async (query: string | undefined, opts: SearchCliOptions, command: Command) =>
+    run(command, (ctx) => searchCommand(ctx, query, opts)),
+  );
+
+program
   .command("add")
   .argument("<symbol>", "ticker symbol, e.g. AAPL")
   .description("add a symbol to your watchlist")
@@ -108,11 +122,22 @@ program
   .description("show the resolved configuration (token masked)")
   .action(async (_opts, command: Command) => run(command, (ctx) => configCommand(ctx)));
 
+interface SearchCliOptions {
+  symbol?: string;
+  name?: string;
+  limit?: string;
+  offset?: string;
+  sort?: "ticker" | "title";
+}
+
 program.addHelpText(
   "after",
   `
 Examples:
   $ teemtape --api-url http://localhost:8787 init
+  $ teemtape search nvidia
+  $ teemtape search --symbol nv
+  $ teemtape search --name microsoft
   $ teemtape add NVDA
   $ teemtape list
   $ teemtape notes NVDA

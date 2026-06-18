@@ -49,3 +49,11 @@ test("default api url is api.teemtape.com", async () => {
   const { stdout } = await cli(["--json", "config"]);
   assert.equal(JSON.parse(stdout).apiUrl, "https://api.teemtape.com");
 });
+
+test("search: requires a query or filter", async () => {
+  await assert.rejects(() => cli(["search"]), (err) => {
+    assert.equal(err.code, 1);
+    assert.match(err.stderr, /provide a search query/i);
+    return true;
+  });
+});

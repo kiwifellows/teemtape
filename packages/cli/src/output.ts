@@ -1,4 +1,4 @@
-import type { Note, Quote } from "@teemtape/api-client";
+import type { Note, Quote, SymbolsListResponse } from "@teemtape/api-client";
 
 const useColor = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
 
@@ -71,6 +71,33 @@ export function printQuotesTable(quotes: Quote[], delayedSeconds: number, source
   process.stdout.write(
     `\n${c.dim(`# prices delayed ~${mins} min · source: ${source}`)}\n`,
   );
+}
+
+/** Render symbol catalog search results as an aligned table. */
+export function printSymbolsTable(res: SymbolsListResponse): void {
+  if (res.symbols.length === 0) {
+    process.stdout.write(c.dim("No symbols matched. Try a different query.\n"));
+    return;
+  }
+
+  const header = `${pad("TICKER", 8)}${pad("COMPANY", 40)}`;
+  process.stdout.write(`${c.dim(header)}\n`);
+
+  for (const s of res.symbols) {
+    const row = pad(s.ticker, 8) + pad(truncate(s.title, 39), 40);
+    process.stdout.write(`${row}\n`);
+  }
+
+  const shown = res.symbols.length;
+  const start = res.total === 0 ? 0 : res.offset + 1;
+  const end = res.offset + shown;
+  const range =
+    res.total === 0
+      ? "0 matches"
+      : shown === 1
+        ? `${start} of ${res.total}`
+        : `${start}–${end} of ${res.total}`;
+  process.stdout.write(`\n${c.dim(`# ${range}`)}\n`);
 }
 
 /** Render a note thread for a symbol. */
