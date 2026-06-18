@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "sync:local": "curl -fsS \"http://127.0.0.1:8787/cdn-cgi/handler/scheduled\"",
     "deploy": "wrangler deploy --env production",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

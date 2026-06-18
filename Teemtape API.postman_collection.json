@@ -1,0 +1,462 @@
+{
+  "info": {
+    "name": "Teemtape API",
+    "description": "API collection for Teemtape — delayed stock quotes, SEC symbol catalog, anonymous watchlists, and notes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Check API health and get configured quote delay."
+      },
+      "response": []
+    },
+    {
+      "name": "Quotes",
+      "item": [
+        {
+          "name": "Get Quotes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/quotes?symbols=AAPL,NVDA,MSFT",
+              "host": ["{{base_url}}"],
+              "path": ["api", "quotes"],
+              "query": [
+                {
+                  "key": "symbols",
+                  "value": "AAPL,NVDA,MSFT",
+                  "description": "Comma-separated list of stock symbols (required)"
+                }
+              ]
+            },
+            "description": "Get delayed stock quotes for specified symbols. Query parameter `symbols` is required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Quotes (Empty - should fail)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/quotes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "quotes"]
+            },
+            "description": "Returns 400 — `symbols` query parameter is required."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Symbols Catalog",
+      "description": "Paginated SEC company ticker reference data (`GET /api/symbols`). Synced from https://www.sec.gov/files/company_tickers.json every 12 hours. Default page size is 100.",
+      "item": [
+        {
+          "name": "List Symbols (page 1, by ticker)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/symbols?offset=0&limit=100&sort=ticker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "symbols"],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Zero-based row offset (0, 100, 200, …)"
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "Page size (max 100)"
+                },
+                {
+                  "key": "sort",
+                  "value": "ticker",
+                  "description": "ticker | alphabetical | title | name"
+                }
+              ]
+            },
+            "description": "First page of symbols sorted alphabetically by ticker."
+          },
+          "response": []
+        },
+        {
+          "name": "List Symbols (page 2, by ticker)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/symbols?offset=100&limit=100&sort=ticker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "symbols"],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "100"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "sort",
+                  "value": "ticker"
+                }
+              ]
+            },
+            "description": "Second page (rows 100–199) sorted by ticker."
+          },
+          "response": []
+        },
+        {
+          "name": "List Symbols (by company name)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/symbols?sort=title&limit=100",
+              "host": ["{{base_url}}"],
+              "path": ["api", "symbols"],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "title",
+                  "description": "Sort alphabetically by company title"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            },
+            "description": "Symbols sorted alphabetically by company name (`sort=title` or `sort=name`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Symbols (q)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/symbols?q=nvidia",
+              "host": ["{{base_url}}"],
+              "path": ["api", "symbols"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "nvidia",
+                  "description": "Search ticker OR company name (case-insensitive substring)"
+                }
+              ]
+            },
+            "description": "Search across both ticker and company name."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Symbols (by ticker)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/symbols?symbol=NV",
+              "host": ["{{base_url}}"],
+              "path": ["api", "symbols"],
+              "query": [
+                {
+                  "key": "symbol",
+                  "value": "NV",
+                  "description": "Filter by ticker substring"
+                }
+              ]
+            },
+            "description": "Filter symbols where the ticker contains the given substring."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Symbols (by company name)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/symbols?name=microsoft",
+              "host": ["{{base_url}}"],
+              "path": ["api", "symbols"],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "microsoft",
+                  "description": "Filter by company name substring"
+                }
+              ]
+            },
+            "description": "Filter symbols where the company title contains the given substring."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Symbols (ticker + name)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/symbols?symbol=A&name=corp",
+              "host": ["{{base_url}}"],
+              "path": ["api", "symbols"],
+              "query": [
+                {
+                  "key": "symbol",
+                  "value": "A"
+                },
+                {
+                  "key": "name",
+                  "value": "corp"
+                }
+              ]
+            },
+            "description": "When both `symbol` and `name` are provided, both filters must match (AND)."
+          },
+          "response": []
+        },
+        {
+          "name": "List Symbols (invalid offset - should fail)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/symbols?offset=-1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "symbols"],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "-1"
+                }
+              ]
+            },
+            "description": "Returns 400 — offset must be a non-negative integer."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Watchlists",
+      "item": [
+        {
+          "name": "Create Watchlist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.token) pm.collectionVariables.set('watchlist_token', data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{base_url}}/api/watchlists",
+              "host": ["{{base_url}}"],
+              "path": ["api", "watchlists"]
+            },
+            "description": "Create a new anonymous watchlist. Returns a 32-char hex token. On success, saves `watchlist_token` collection variable for subsequent requests."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Watchlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/w/{{watchlist_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "w", "{{watchlist_token}}"]
+            },
+            "description": "Retrieve a watchlist by token. Returns metadata and list of symbols."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Symbol to Watchlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"NVDA\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/w/{{watchlist_token}}/symbols",
+              "host": ["{{base_url}}"],
+              "path": ["api", "w", "{{watchlist_token}}", "symbols"]
+            },
+            "description": "Add a stock symbol to a watchlist. Idempotent — symbols are normalized to uppercase."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Invalid Symbol (should fail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"not a symbol!!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/w/{{watchlist_token}}/symbols",
+              "host": ["{{base_url}}"],
+              "path": ["api", "w", "{{watchlist_token}}", "symbols"]
+            },
+            "description": "Returns 400 — invalid symbol format."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unknown Watchlist (should fail)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/w/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "host": ["{{base_url}}"],
+              "path": ["api", "w", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+            },
+            "description": "Returns 404 — watchlist token does not exist."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notes",
+      "item": [
+        {
+          "name": "Get Notes for Symbol",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/w/{{watchlist_token}}/notes?symbol=NVDA",
+              "host": ["{{base_url}}"],
+              "path": ["api", "w", "{{watchlist_token}}", "notes"],
+              "query": [
+                {
+                  "key": "symbol",
+                  "value": "NVDA",
+                  "description": "Stock symbol to fetch notes for (required)"
+                }
+              ]
+            },
+            "description": "Retrieve all notes for a symbol in a watchlist. Newest first."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Note from CLI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"NVDA\",\n  \"body\": \"Strong earnings report\",\n  \"source\": \"cli\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/w/{{watchlist_token}}/notes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "w", "{{watchlist_token}}", "notes"]
+            },
+            "description": "Add a note from the CLI. Author is set to `agent-cli`."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Note from Web",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"NVDA\",\n  \"body\": \"Great technical setup\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/w/{{watchlist_token}}/notes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "w", "{{watchlist_token}}", "notes"]
+            },
+            "description": "Add an anonymous web note. Author is `anon-{first 6 chars of token}`."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8787",
+      "type": "string",
+      "description": "API base URL (local wrangler dev default)"
+    },
+    {
+      "key": "watchlist_token",
+      "value": "abcdef1234567890abcdef1234567890",
+      "type": "string",
+      "description": "32-char hex watchlist token (auto-set by Create Watchlist, or paste manually)"
+    }
+  ]
+}

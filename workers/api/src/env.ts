@@ -12,6 +12,9 @@ export interface Env {
   /** Web app base URL, used to build share links. */
   WEB_URL?: string;
 
-  /** Secret — set with `wrangler secret put POLYGON_API_KEY`. */
+  /** Descriptive User-Agent for the SEC symbols sync cron (fair-access policy). */
+  SEC_USER_AGENT: string;
+
+  /** Secret — local: `workers/api/.dev.vars`; deployed: `npx wrangler secret put`. */
   POLYGON_API_KEY?: string;
 }

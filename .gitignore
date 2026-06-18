@@ -3,6 +3,7 @@ dist/
 *.tsbuildinfo
 .env
 .env.*
+.dev.vars
 .DS_Store
 coverage/
 

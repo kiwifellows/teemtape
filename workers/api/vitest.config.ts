@@ -13,7 +13,10 @@ export default defineConfig(async () => {
     singleWorker: true,
     wrangler: { configPath: "./wrangler.toml" },
     miniflare: {
-      bindings: { TEST_MIGRATIONS: migrations },
+      bindings: {
+        TEST_MIGRATIONS: migrations,
+        QUOTES_PROVIDER: "sample",
+      },
     },
   };
 

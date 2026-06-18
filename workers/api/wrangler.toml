@@ -4,13 +4,13 @@
 # environment (so `wrangler dev` and `vitest` work with no flags); `[env.production]`
 # overrides it for deploys (`wrangler deploy --env production`).
 #
-# Secrets are NOT stored here. Set them with:
-#   wrangler secret put POLYGON_API_KEY                 # dev
-#   wrangler secret put POLYGON_API_KEY --env production # prod
+# Secrets are NOT stored here.
+# Local dev: copy .dev.vars.example -> .dev.vars (wrangler dev reads that file).
+# Deployed:  npx wrangler secret put POLYGON_API_KEY [--env production]
 #
 # Replace the placeholder resource ids after creating resources:
-#   wrangler d1 create teemtape-db          -> copy database_id
-#   wrangler kv:namespace create QUOTES_CACHE -> copy id
+#   npx wrangler d1 create teemtape-db          -> copy database_id
+#   npx wrangler kv namespace create QUOTES_CACHE -> copy id
 
 name = "teemtape-api"
 main = "src/index.ts"
@@ -24,9 +24,13 @@ enabled = true
 
 # Non-secret config (see [env.production.vars] for prod overrides).
 [vars]
-QUOTES_PROVIDER = "sample"          # "sample" (no key needed) | "polygon"
+QUOTES_PROVIDER = "polygon"          # "sample" (no key needed) | "polygon"
 QUOTE_DELAY_SECONDS = "60"          # intentionally delayed ~1 minute
 WEB_URL = "http://localhost:5173"   # used to build share links
+SEC_USER_AGENT = "teemtape-api symbols-sync help@teem.cloud"
+
+[triggers]
+crons = ["0 */12 * * *"]
 
 [[d1_databases]]
 binding = "DB"
@@ -51,6 +55,10 @@ enabled = true
 QUOTES_PROVIDER = "polygon"
 QUOTE_DELAY_SECONDS = "60"
 WEB_URL = "https://teemtape.app"
+SEC_USER_AGENT = "teemtape-api symbols-sync contact@teemtape.app"
+
+[env.production.triggers]
+crons = ["0 */12 * * *"]
 
 [[env.production.d1_databases]]
 binding = "DB"
