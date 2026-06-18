@@ -3,6 +3,7 @@ import type {
   Note,
   NotesResponse,
   QuotesResponse,
+  SymbolsListResponse,
   Watchlist,
 } from "./types.js";
 
@@ -50,6 +51,26 @@ export class TeemtapeClient {
   async getQuotes(symbols: string[]): Promise<QuotesResponse> {
     const query = encodeURIComponent(symbols.join(","));
     return this.request<QuotesResponse>(`/api/quotes?symbols=${query}`);
+  }
+
+  /** Paginated SEC symbol catalog with optional search and sort. */
+  async listSymbols(params: {
+    offset?: number;
+    limit?: number;
+    sort?: "ticker" | "title";
+    q?: string;
+    symbol?: string;
+    name?: string;
+  } = {}): Promise<SymbolsListResponse> {
+    const search = new URLSearchParams();
+    if (params.offset !== undefined) search.set("offset", String(params.offset));
+    if (params.limit !== undefined) search.set("limit", String(params.limit));
+    if (params.sort) search.set("sort", params.sort);
+    if (params.q) search.set("q", params.q);
+    if (params.symbol) search.set("symbol", params.symbol);
+    if (params.name) search.set("name", params.name);
+    const qs = search.toString();
+    return this.request<SymbolsListResponse>(`/api/symbols${qs ? `?${qs}` : ""}`);
   }
 
   /** Create a new anonymous watchlist and return its MD5 token. */

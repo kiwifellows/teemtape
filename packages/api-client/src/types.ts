@@ -60,3 +60,22 @@ export interface CreateNoteInput {
   body: string;
   source: NoteSource;
 }
+
+/** A row in the SEC symbols reference catalog. */
+export interface SymbolEntry {
+  ticker: string;
+  cikStr: number;
+  title: string;
+}
+
+export interface SymbolsListResponse {
+  symbols: SymbolEntry[];
+  /** Zero-based row offset (e.g. 0, 100, 200). */
+  offset: number;
+  /** Page size (max 100). */
+  limit: number;
+  /** Total rows matching the current filters. */
+  total: number;
+  /** Sort order applied: ticker or title. */
+  sort: "ticker" | "title";
+}

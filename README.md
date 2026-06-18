@@ -119,6 +119,8 @@ will be added with the Worker in Phase 2.
   the CLI, desktop, and mobile surfaces.
 - [`docs/cli-options.md`](docs/cli-options.md) — options for scaffolding the CLI
   (language, framework, distribution) with a recommendation, for approval.
+- [`docs/releases.md`](docs/releases.md) — how releases update `CHANGELOG.md` and
+  alternative automation options.
 
 [Cloudflare skills guide]: https://github.com/kiwifellows/ai/blob/main/docs/clouds/cloudflare.md
 [feature-development practices]: https://github.com/kiwifellows/ai/blob/main/docs/practices/feature-development.md

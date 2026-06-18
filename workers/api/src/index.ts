@@ -2,7 +2,18 @@ import type { Env } from "./env.js";
 import { error, HttpError, json, noContent } from "./http.js";
 import { getQuotes } from "./quotes.js";
 import { addNote, addSymbol, createWatchlist, getNotes, getWatchlist } from "./repo.js";
-import { parseNoteBody, parseSource, parseSymbol, parseSymbolList, parseToken } from "./validation.js";
+import { listSymbolsCatalog } from "./symbols.js";
+import { syncSymbols } from "./sync.js";
+import {
+  parseNoteBody,
+  parseOptionalSearch,
+  parseSource,
+  parseSymbol,
+  parseSymbolList,
+  parseSymbolsPagination,
+  parseSymbolsSort,
+  parseToken,
+} from "./validation.js";
 
 async function readJson(request: Request): Promise<Record<string, unknown>> {
   try {
@@ -28,6 +39,21 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (path === "/api/quotes" && method === "GET") {
     const symbols = parseSymbolList(url.searchParams.get("symbols"));
     return json(await getQuotes(env, symbols));
+  }
+
+  // GET /api/symbols?offset=0&limit=100&sort=ticker|title&q=&symbol=&name=
+  if (path === "/api/symbols" && method === "GET") {
+    const { offset, limit } = parseSymbolsPagination(url.searchParams);
+    return json(
+      await listSymbolsCatalog(env, {
+        offset,
+        limit,
+        sort: parseSymbolsSort(url.searchParams.get("sort")),
+        q: parseOptionalSearch(url.searchParams.get("q")),
+        symbol: parseOptionalSearch(url.searchParams.get("symbol"), 20),
+        name: parseOptionalSearch(url.searchParams.get("name")),
+      }),
+    );
   }
 
   // POST /api/watchlists
@@ -79,6 +105,16 @@ export default {
       if (err instanceof HttpError) return error(err.message, err.status);
       console.error("unhandled error", err);
       return error("internal error", 500);
+    }
+  },
+
+  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    try {
+      const result = await syncSymbols(env);
+      console.log("symbols sync complete", result);
+    } catch (err) {
+      console.error("symbols sync failed", err);
+      throw err;
     }
   },
 } satisfies ExportedHandler<Env>;
