@@ -1,0 +1,11 @@
+# teemtape web — Cloudflare Pages (static Vite build).
+#
+# Deploy: npm run deploy --workspace @teemtape/web
+# (requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment)
+#
+# Custom domain (www.teemtape.com) is configured in the Cloudflare dashboard
+# under Workers & Pages → teemtape-web → Custom domains.
+
+name = "teemtape-web"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"

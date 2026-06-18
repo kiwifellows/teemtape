@@ -128,11 +128,20 @@ npx wrangler kv namespace create QUOTES_CACHE # -> id
 
 ## Deploy
 
+Production deploys run automatically on push to `main` (see
+[`.github/workflows/deploy-api.yml`](../../.github/workflows/deploy-api.yml)).
+
+Manual deploy:
+
 ```bash
 cd workers/api
 npm run migrate:remote                 # apply migrations to the prod D1
 npm run deploy                          # wrangler deploy --env production
 ```
+
+The production Worker is served at **`https://api.teemtape.com`** via a Custom
+Domain in `wrangler.toml` (`custom_domain = true`). Wrangler creates the proxied
+DNS record and certificate on deploy — no manual route or zone_id needed.
 
 ## Test
 

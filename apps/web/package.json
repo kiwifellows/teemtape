@@ -1,0 +1,28 @@
+{
+  "name": "@teemtape/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "teemtape desktop web app — watchlist, delayed quotes, anonymous notes.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "deploy": "wrangler pages deploy dist --project-name teemtape-web --branch main"
+  },
+  "dependencies": {
+    "@teemtape/api-client": "*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "typescript": "^5.4.0",
+    "vite": "^6.3.0",
+    "wrangler": "^4.101.0"
+  }
+}
