@@ -41,7 +41,10 @@ export class TeemtapeClient {
   constructor(options: ApiClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.token = options.token;
-    this.fetchImpl = options.fetch ?? globalThis.fetch;
+    // Wrap default fetch: assigning window.fetch to a variable breaks in browsers
+    // ("Illegal invocation") unless called with the correct receiver.
+    this.fetchImpl =
+      options.fetch ?? ((input, init) => globalThis.fetch(input, init));
     if (typeof this.fetchImpl !== "function") {
       throw new Error("No fetch implementation available (need Node 18+ or pass options.fetch).");
     }

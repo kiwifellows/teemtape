@@ -71,6 +71,8 @@ See [`packages/cli/README.md`](packages/cli/README.md) for CLI commands and conf
 
 ```
 teemtape/
+├── apps/
+│   └── web/            # React desktop web app (@teemtape/web)
 ├── packages/
 │   ├── api-client/     # Shared types + typed HTTP client (@teemtape/api-client)
 │   ├── cli/            # Commander.js CLI (@teemtape/cli)
@@ -90,10 +92,13 @@ From the repo root:
 
 | Command | Purpose |
 | ------- | ------- |
-| `npm run build` | Build `api-client` and `cli` |
+| `npm run build` | Build `api-client`, `cli`, and `web` |
 | `npm test` | Run tests in all workspaces that define them |
 | `npm run mock` | Start the in-memory mock API |
 | `npm run api:dev` | Start the Worker via `wrangler dev` |
+| `npm run web:dev` | Start the Vite dev server (`apps/web`) |
+| `npm run web:build` | Production build of the web app |
+| `npm run web:deploy` | Deploy web app to Cloudflare Pages (maintainers) |
 
 Per-workspace examples:
 
@@ -164,6 +169,7 @@ merge to `main` (see CI below). Do not run destructive migrations without discus
 | Workflow | Trigger | What it does |
 | -------- | ------- | ------------ |
 | [Deploy API (production)](.github/workflows/deploy-api.yml) | Push to `main` | Test, apply D1 migrations, deploy Worker to Cloudflare production |
+| [Deploy Web (production)](.github/workflows/deploy-web.yml) | Push to `main` (web or api-client paths) | Build and deploy `apps/web` to Cloudflare Pages |
 | [Update changelog](.github/workflows/changelog.yml) | GitHub release published | Prepends merged PRs to `CHANGELOG.md` |
 
 Production deployment is **main only**. Feature branches are not deployed.
