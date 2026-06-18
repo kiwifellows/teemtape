@@ -36,11 +36,24 @@ and `notes` work immediately. Once it's published you'll be able to run it as
 | ------- | ------------ |
 | `teemtape init` | Create a new anonymous watchlist; saves the token to your config file |
 | `teemtape list [--symbols A,B]` | Delayed quotes for your watchlist (or specific symbols) |
+| `teemtape search [QUERY]` | Search the SEC symbol catalog by ticker or company name |
 | `teemtape add <SYMBOL>` | Add a symbol to your watchlist |
 | `teemtape notes <SYMBOL>` | Read the anonymous note thread for a symbol |
 | `teemtape note <SYMBOL> -m "…"` | Post an anonymous note (tagged `source: cli`) |
 | `teemtape share` | Print your shareable watchlist link |
 | `teemtape config` | Show resolved config (token masked) |
+
+### Symbol search
+
+Search the SEC symbol catalog (no watchlist token required):
+
+```bash
+teemtape search nvidia              # match ticker or company name
+teemtape search --symbol nv         # ticker substring only
+teemtape search --name microsoft    # company name substring only
+teemtape search --symbol a --name corp   # combine filters (AND)
+teemtape search apple --limit 5 --json
+```
 
 ### Global flags
 
