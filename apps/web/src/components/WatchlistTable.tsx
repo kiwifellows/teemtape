@@ -47,14 +47,22 @@ export function WatchlistTable({
 
           return (
             <tr key={quote.symbol}>
-              <td className="sym">{quote.symbol}</td>
-              <td className="coname">{quote.name}</td>
-              <td className="right num">${fmtPrice(quote.price)}</td>
-              <td className={`right num ${change.direction}`}>{change.text}</td>
-              <td className="center">
+              <td className="sym" data-label="Symbol">
+                {quote.symbol}
+              </td>
+              <td className="coname" data-label="Company">
+                {quote.name}
+              </td>
+              <td className="right num" data-label="Last price">
+                ${fmtPrice(quote.price)}
+              </td>
+              <td className={`right num ${change.direction}`} data-label="Change">
+                {change.text}
+              </td>
+              <td className="center" data-label="Notes">
                 <span className={countCls}>{count}</span>
               </td>
-              <td className="right">
+              <td className="right actions-cell">
                 <button
                   type="button"
                   className="note-btn"

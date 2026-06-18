@@ -1,6 +1,7 @@
 import type { Quote, SymbolEntry } from "@teemtape/api-client";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Footer } from "../components/Footer";
 import { NotePopup } from "../components/NotePopup";
 import { ShareBar } from "../components/ShareBar";
 import { SymbolSearch } from "../components/SymbolSearch";
@@ -129,10 +130,7 @@ export function WatchlistPage({ token }: { token: string }) {
         />
       )}
 
-      <p className="footer-note">
-        Not a trading tool. teemtape is for learning and commenting on stocks. Data is delayed and
-        informational only.
-      </p>
+      <Footer />
 
       {noteSymbol && (
         <NotePopup
