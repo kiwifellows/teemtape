@@ -1,0 +1,179 @@
+name: Release
+
+# Bumps the monorepo version, tags + publishes a GitHub release, and publishes
+# the public npm packages (@teemtape/api-client and @teemtape/cli).
+#
+# Run manually from the Actions tab ("Run workflow") and pick a release type,
+# or provide an explicit version to override the automatic bump.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Semver bump applied to the current version"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      version:
+        description: "Explicit version (e.g. 1.2.3). Overrides release_type when set."
+        type: string
+        required: false
+        default: ""
+      dry_run:
+        description: "Preview the release without pushing, tagging, or publishing"
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    name: Tag, release, and publish to npm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+          scope: "@teemtape"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compute next version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+          CURRENT="$(node scripts/version.mjs current)"
+          if [ -n "$INPUT_VERSION" ]; then
+            NEXT="$(printf '%s' "$INPUT_VERSION" | sed 's/^v//')"
+          else
+            NEXT="$(node scripts/version.mjs next "$INPUT_RELEASE_TYPE")"
+          fi
+          if [ "$CURRENT" = "$NEXT" ]; then
+            echo "::error::Next version ($NEXT) is the same as the current version ($CURRENT)."
+            exit 1
+          fi
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Releasing $CURRENT -> $NEXT (tag v$NEXT)"
+
+      - name: Fail if tag already exists
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists."
+            exit 1
+          fi
+
+      - name: Apply version to all package.json files
+        run: |
+          set -euo pipefail
+          node scripts/version.mjs set "${{ steps.version.outputs.next }}"
+          npm install --package-lock-only
+
+      - name: Build publishable packages
+        run: |
+          set -euo pipefail
+          npm run build --workspace @teemtape/api-client
+          npm run build --workspace @teemtape/cli
+
+      - name: Test publishable packages
+        run: |
+          set -euo pipefail
+          npm run test --workspace @teemtape/api-client --if-present
+          npm run test --workspace @teemtape/cli --if-present
+
+      - name: Publish to npm (dry run)
+        if: ${{ inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm publish --workspace @teemtape/api-client --provenance --access public --dry-run
+          npm publish --workspace @teemtape/cli --provenance --access public --dry-run
+
+      - name: Commit, tag, and push
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          NEXT="${{ steps.version.outputs.next }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "::error::No version changes to commit."
+            exit 1
+          fi
+          git commit -m "chore(release): $TAG"
+          git tag -a "$TAG" -m "Release $NEXT"
+          git push origin HEAD:main
+          git push origin "$TAG"
+
+      - name: Publish @teemtape/api-client to npm
+        if: ${{ !inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
+          PKG: "@teemtape/api-client"
+          VERSION: ${{ steps.version.outputs.next }}
+        run: bash scripts/npm-publish.sh
+
+      - name: Publish @teemtape/cli to npm
+        if: ${{ !inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
+          PKG: "@teemtape/cli"
+          VERSION: ${{ steps.version.outputs.next }}
+        run: bash scripts/npm-publish.sh
+
+      - name: Create GitHub release
+        if: ${{ !inputs.dry_run }}
+        env:
+          # Prefer a PAT (RELEASE_TOKEN) so the published-release event can trigger
+          # downstream workflows such as the changelog updater. Falls back to the
+          # default token, which still creates the release (without re-triggering
+          # release-event workflows).
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --repo "${{ github.repository }}" \
+            --target main \
+            --title "$TAG" \
+            --generate-notes
+
+      - name: Summary
+        run: |
+          {
+            echo "### Release ${{ steps.version.outputs.tag }}"
+            echo
+            echo "- Previous version: \`${{ steps.version.outputs.current }}\`"
+            echo "- New version: \`${{ steps.version.outputs.next }}\`"
+            echo "- Dry run: \`${{ inputs.dry_run }}\`"
+            echo
+            echo "Published packages: \`@teemtape/api-client\`, \`@teemtape/cli\`"
+          } >> "$GITHUB_STEP_SUMMARY"
