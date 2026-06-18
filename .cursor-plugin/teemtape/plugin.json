@@ -1,0 +1,12 @@
+{
+  "name": "teemtape",
+  "version": "1.0.0",
+  "description": "Agent skills for the teemtape CLI — list stocks, read notes, post anonymous commentary",
+  "author": {
+    "name": "kiwifellows"
+  },
+  "homepage": "https://github.com/kiwifellows/teemtape",
+  "repository": "https://github.com/kiwifellows/teemtape",
+  "license": "MIT",
+  "skills": "../skills/teemtape-cli"
+}
