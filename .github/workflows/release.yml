@@ -1,7 +1,15 @@
-name: Release
+name: Prepare release
 
-# Bumps the monorepo version, tags + publishes a GitHub release, and publishes
-# the public npm packages (@teemtape/api-client and @teemtape/cli).
+# Phase 1 of the release process.
+#
+# Bumps the monorepo version, updates CHANGELOG.md, and opens a "release" pull
+# request against `main`. It deliberately does NOT push to `main`, tag, or
+# publish — that keeps `main` a protected, PR-only branch.
+#
+# When the release PR is merged, `.github/workflows/tag-release.yml` takes over:
+# it creates the `v<version>` tag, cuts the downloadable GitHub release, and
+# publishes the npm packages. Tags are not subject to branch protection, so that
+# step works even with `main` locked down.
 #
 # Run manually from the Actions tab ("Run workflow") and pick a release type,
 # or provide an explicit version to override the automatic bump.
@@ -23,22 +31,22 @@ on:
         required: false
         default: ""
       dry_run:
-        description: "Preview the release without pushing, tagging, or publishing"
+        description: "Preview the release without opening a pull request"
         type: boolean
         default: false
 
 concurrency:
-  group: release
+  group: release-prepare
   cancel-in-progress: false
 
 permissions:
   contents: write
-  id-token: write
+  pull-requests: write
 
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
-    name: Tag, release, and publish to npm
+    name: Open release pull request
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,8 +59,6 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          registry-url: "https://registry.npmjs.org"
-          scope: "@teemtape"
 
       - name: Install dependencies
         run: npm ci
@@ -77,7 +83,8 @@ jobs:
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "next=$NEXT" >> "$GITHUB_OUTPUT"
           echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"
-          echo "Releasing $CURRENT -> $NEXT (tag v$NEXT)"
+          echo "branch=release/v$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Preparing release $CURRENT -> $NEXT (tag v$NEXT)"
 
       - name: Fail if tag already exists
         run: |
@@ -115,65 +122,136 @@ jobs:
           npm publish --workspace @teemtape/api-client --provenance --access public --dry-run
           npm publish --workspace @teemtape/cli --provenance --access public --dry-run
 
-      - name: Commit, tag, and push
-        if: ${{ !inputs.dry_run }}
+      - name: Generate changelog entry
+        id: changelog
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          NEXT: ${{ steps.version.outputs.next }}
         run: |
           set -euo pipefail
-          TAG="${{ steps.version.outputs.tag }}"
-          NEXT="${{ steps.version.outputs.next }}"
+
+          PREVIOUS_TAG="$(git tag --sort=-v:refname | head -n 1 || true)"
+          RELEASE_DATE="$(date -u +%Y-%m-%d)"
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            SINCE_ISO="$(git log -1 --format=%aI "$PREVIOUS_TAG")"
+            echo "Collecting merged PRs since $PREVIOUS_TAG ($SINCE_ISO)"
+            PR_JSON="$(
+              gh pr list \
+                --repo "${{ github.repository }}" \
+                --state merged \
+                --base main \
+                --limit 200 \
+                --json number,title,url,mergedAt,author \
+                --search "merged:>=$SINCE_ISO"
+            )"
+            PR_JSON="$(echo "$PR_JSON" | jq --arg since "$SINCE_ISO" '
+              [ .[] | select(.mergedAt > $since) ] | sort_by(.mergedAt)
+            ')"
+          else
+            echo "First release — collecting all merged PRs"
+            PR_JSON="$(
+              gh pr list \
+                --repo "${{ github.repository }}" \
+                --state merged \
+                --base main \
+                --limit 200 \
+                --json number,title,url,mergedAt,author
+            )"
+            PR_JSON="$(echo "$PR_JSON" | jq 'sort_by(.mergedAt)')"
+          fi
+
+          {
+            echo "## [$TAG] - $RELEASE_DATE"
+            echo
+            if [ "$(echo "$PR_JSON" | jq 'length')" -eq 0 ]; then
+              echo "- Maintenance release."
+            else
+              echo "$PR_JSON" | jq -r '.[] | "- \(.title) ([#\(.number)](\(.url))) (@\(.author.login))"'
+            fi
+            echo
+          } > /tmp/release-entry.md
+
+          echo "Generated changelog entry:"
+          cat /tmp/release-entry.md
+
+      - name: Prepend entry to CHANGELOG.md
+        run: |
+          set -euo pipefail
+          if [ ! -f CHANGELOG.md ]; then
+            printf '# Changelog\n\n' > CHANGELOG.md
+          fi
+          tmp="$(mktemp)"
+          cat /tmp/release-entry.md CHANGELOG.md > "$tmp"
+          mv "$tmp" CHANGELOG.md
+
+      - name: Open release pull request
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          BRANCH: ${{ steps.version.outputs.branch }}
+          TAG: ${{ steps.version.outputs.tag }}
+          NEXT: ${{ steps.version.outputs.next }}
+          CURRENT: ${{ steps.version.outputs.current }}
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
           git add -A
           if git diff --staged --quiet; then
-            echo "::error::No version changes to commit."
+            echo "::error::No release changes to commit."
             exit 1
           fi
           git commit -m "chore(release): $TAG"
-          git tag -a "$TAG" -m "Release $NEXT"
-          git push origin HEAD:main
-          git push origin "$TAG"
+          git push --force-with-lease origin "$BRANCH"
 
-      - name: Publish @teemtape/api-client to npm
-        if: ${{ !inputs.dry_run }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
-          PKG: "@teemtape/api-client"
-          VERSION: ${{ steps.version.outputs.next }}
-        run: bash scripts/npm-publish.sh
+          BODY="$(cat <<EOF
+          Automated release prepared by the **Prepare release** workflow.
 
-      - name: Publish @teemtape/cli to npm
-        if: ${{ !inputs.dry_run }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
-          PKG: "@teemtape/cli"
-          VERSION: ${{ steps.version.outputs.next }}
-        run: bash scripts/npm-publish.sh
+          - Version: \`$CURRENT\` → \`$NEXT\`
+          - Tag to be cut on merge: \`$TAG\`
 
-      - name: Create GitHub release
-        if: ${{ !inputs.dry_run }}
-        env:
-          # Prefer a PAT (RELEASE_TOKEN) so the published-release event can trigger
-          # downstream workflows such as the changelog updater. Falls back to the
-          # default token, which still creates the release (without re-triggering
-          # release-event workflows).
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          set -euo pipefail
-          gh release create "$TAG" \
-            --repo "${{ github.repository }}" \
-            --target main \
-            --title "$TAG" \
-            --generate-notes
+          Merging this PR will trigger \`tag-release.yml\`, which:
+
+          1. Creates the annotated tag \`$TAG\` (tags are not blocked by branch protection).
+          2. Publishes the downloadable GitHub release for \`$TAG\`.
+          3. Publishes \`@teemtape/api-client\` and \`@teemtape/cli\` to npm.
+
+          Review the version bump and the CHANGELOG.md entry below, then merge to ship.
+          EOF
+          )"
+
+          if EXISTING="$(gh pr list --repo "${{ github.repository }}" --head "$BRANCH" --json url --jq '.[0].url')" && [ -n "$EXISTING" ]; then
+            echo "Updating existing release PR: $EXISTING"
+            gh pr edit "$EXISTING" --title "chore(release): $TAG" --body "$BODY"
+            echo "pr_url=$EXISTING" >> "$GITHUB_OUTPUT"
+          else
+            URL="$(gh pr create \
+              --repo "${{ github.repository }}" \
+              --base main \
+              --head "$BRANCH" \
+              --title "chore(release): $TAG" \
+              --body "$BODY")"
+            echo "Opened release PR: $URL"
+            echo "pr_url=$URL" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Summary
         run: |
           {
-            echo "### Release ${{ steps.version.outputs.tag }}"
+            echo "### Release prepared: ${{ steps.version.outputs.tag }}"
             echo
             echo "- Previous version: \`${{ steps.version.outputs.current }}\`"
             echo "- New version: \`${{ steps.version.outputs.next }}\`"
+            echo "- Release branch: \`${{ steps.version.outputs.branch }}\`"
             echo "- Dry run: \`${{ inputs.dry_run }}\`"
             echo
-            echo "Published packages: \`@teemtape/api-client\`, \`@teemtape/cli\`"
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "Dry run — no pull request was opened."
+            else
+              echo "Merge the release PR to cut the tag, publish the GitHub release, and publish to npm."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
