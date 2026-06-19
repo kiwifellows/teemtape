@@ -1,6 +1,7 @@
 import type { Env } from "./env.js";
 import { error, HttpError, json, noContent } from "./http.js";
 import { getQuotes } from "./quotes.js";
+import { checkApiKey, checkRateLimit } from "./rate-limit.js";
 import {
   addNote,
   addSymbol,
@@ -41,11 +42,19 @@ async function route(request: Request, env: Env): Promise<Response> {
   const path = url.pathname;
   const method = request.method;
 
+  // CORS preflight — bypass all guards.
   if (method === "OPTIONS") return noContent();
 
+  // Health check — bypass rate limiting and auth so load balancers can probe freely.
   if (path === "/" || path === "/health") {
     return json({ ok: true, service: "teemtape-api", delayedSeconds: Number(env.QUOTE_DELAY_SECONDS ?? "60") });
   }
+
+  // API-key guard (optional — only active when API_KEY secret is configured).
+  checkApiKey(request, env);
+
+  // IP-based rate limiting (60 req/min by default; 0 = disabled).
+  await checkRateLimit(request, env);
 
   // GET /api/quotes?symbols=AAPL,MSFT
   if (path === "/api/quotes" && method === "GET") {
@@ -129,7 +138,7 @@ export default {
     try {
       return await route(request, env);
     } catch (err) {
-      if (err instanceof HttpError) return error(err.message, err.status);
+      if (err instanceof HttpError) return error(err.message, err.status, err.extraHeaders);
       console.error("unhandled error", err);
       return error("internal error", 500);
     }

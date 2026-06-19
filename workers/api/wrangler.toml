@@ -24,8 +24,18 @@ enabled = true
 
 # Non-secret config (see [env.production.vars] for prod overrides).
 [vars]
-QUOTES_PROVIDER = "polygon"          # "sample" (no key needed) | "polygon"
+# Quote provider priority: comma-separated list tried in order.
+# Supported: "yahoo" | "stooq" | "polygon" | "sample"
+# "polygon" is silently skipped when POLYGON_API_KEY is absent.
+# Default (when unset): "yahoo,stooq,sample"
+QUOTES_PROVIDER = "yahoo,stooq,sample"
 QUOTE_DELAY_SECONDS = "60"          # intentionally delayed ~1 minute
+# Shared KV cache TTL for quote data (seconds). Min 60 (KV floor). Default 300.
+# All callers within this window share the same cached value — e.g. user1 at
+# 8:20 am and user2 at 8:24 am both receive the same GOOG quote from cache.
+QUOTE_CACHE_TTL_SECONDS = "300"
+# IP rate limit: max requests per minute per caller (0 = disabled).
+RATE_LIMIT_RPM = "60"
 WEB_URL = "http://localhost:5173"   # used to build share links
 SEC_USER_AGENT = "teemtape-api symbols-sync help@teem.cloud"
 
@@ -54,8 +64,10 @@ custom_domain = true
 enabled = true
 
 [env.production.vars]
-QUOTES_PROVIDER = "polygon"
+QUOTES_PROVIDER = "yahoo,polygon,sample"
 QUOTE_DELAY_SECONDS = "60"
+QUOTE_CACHE_TTL_SECONDS = "300"
+RATE_LIMIT_RPM = "60"
 WEB_URL = "https://www.teemtape.com"
 SEC_USER_AGENT = "teemtape-api symbols-sync contact@teemtape.com"
 
