@@ -120,6 +120,11 @@ request guidelines, and how CI deploys the API on merges to `main`.
 
 ## Documentation
 
+A full documentation site for **end users and agents** lives in
+[`apps/docs`](apps/docs) (Astro + Starlight). Run it locally with
+`npm run dev --workspace docs`. It pulls together the guides below plus web/CLI
+usage, the HTTP API, and the agent skill.
+
 - [`docs/architecture.md`](docs/architecture.md) — system plan, data model, API,
   and how the kiwifellows practice guides are applied.
 - [`docs/roadmap.md`](docs/roadmap.md) — development milestones and priority for
@@ -128,6 +133,11 @@ request guidelines, and how CI deploys the API on merges to `main`.
   (language, framework, distribution) with a recommendation, for approval.
 - [`docs/releases.md`](docs/releases.md) — how releases update `CHANGELOG.md` and
   alternative automation options.
+
+## License
+
+teemtape is open source under the **MIT License**, Copyright (c) 2026 Benjamin
+Fellows. See [`LICENSE`](LICENSE).
 
 [Cloudflare skills guide]: https://github.com/kiwifellows/ai/blob/main/docs/clouds/cloudflare.md
 [feature-development practices]: https://github.com/kiwifellows/ai/blob/main/docs/practices/feature-development.md

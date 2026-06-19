@@ -4,6 +4,7 @@
   "private": true,
   "description": "teemtape Cloudflare Worker API (quotes proxy + anonymous notes on D1).",
   "license": "MIT",
+  "author": "Benjamin Fellows",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

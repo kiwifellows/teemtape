@@ -3,6 +3,7 @@
   "version": "0.1.3",
   "description": "Shared typed client + types for the teemtape Worker API.",
   "license": "MIT",
+  "author": "Benjamin Fellows",
   "homepage": "https://github.com/kiwifellows/teemtape#readme",
   "repository": {
     "type": "git",
