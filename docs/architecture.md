@@ -70,18 +70,42 @@ CREATE TABLE note (
   id          TEXT PRIMARY KEY,         -- uuid
   token       TEXT NOT NULL REFERENCES watchlist(token),
   symbol      TEXT NOT NULL,            -- e.g. AAPL
-  author      TEXT NOT NULL,            -- anon-xxxxxx or agent-cli
+  author      TEXT NOT NULL,            -- chosen handle, anon-xxxxxx, or agent-cli
   source      TEXT NOT NULL,            -- 'web' | 'cli'
   body        TEXT NOT NULL,
   created_at  INTEGER NOT NULL
 );
 
 CREATE INDEX idx_note_token_symbol ON note (token, symbol, created_at);
+
+-- Anonymous handles: a lightweight, sign-in-free identity so collaborators on a
+-- shared watchlist can tell each other apart. Exists only to guarantee global
+-- uniqueness ("never used before"); still no email/password/PII.
+CREATE TABLE handle (
+  handle      TEXT PRIMARY KEY,         -- normalized lowercase, e.g. "user1234"
+  created_at  TEXT NOT NULL
+);
 ```
 
-Notes are anonymous: the `author` is a short handle derived from the watchlist
-token (and a `agent-cli` label for CLI posts). No accounts, no PII collected
-([security practices]: don't collect data you don't need).
+Notes are anonymous. The `author` is the poster's chosen **handle** (e.g.
+`user1234`) when one is set, falling back to a short token-derived label
+(`anon-xxxxxx`) or `agent-cli`. No accounts, no PII collected ([security
+practices]: don't collect data you don't need).
+
+### Anonymous handles (no sign-in)
+
+To let multiple people collaborate on the same shared watchlist without accounts,
+each client picks a short, human-friendly **handle** once and reuses it:
+
+- It is **auto-generated and unique** (`user1234`-style) the first time someone
+  goes to add a note, and the user can change it to anything still available.
+- It is stored **client-side** so it persists with no sign-in: `localStorage`
+  in the browser, `~/.config/teemtape/config.json` for the CLI.
+- Uniqueness is enforced **server-side** via the `handle` table. The handle is
+  the note `author`, so collaborators can tell each other apart. It is *not* a
+  secret or a credential — anyone can claim any free handle; it is purely a
+  display identity. This is a deliberate first step that could later grow into a
+  real account/handle, but stays simple for now.
 
 ## Share links (anonymous MD5 token)
 
@@ -106,15 +130,18 @@ token (and a `agent-cli` label for CLI posts). No accounts, no PII collected
 
 ```
 GET  /api/quotes?symbols=AAPL,MSFT      -> delayed quote rows
+POST /api/handles                       -> claim { handle } or auto-generate a unique one
+GET  /api/handles/:handle               -> { handle, available }
 GET  /api/w/:token                      -> watchlist + symbols
 POST /api/w/:token/symbols              -> add a symbol
 GET  /api/w/:token/notes?symbol=AAPL    -> notes for a symbol
-POST /api/w/:token/notes                -> add a note { symbol, body, source }
+POST /api/w/:token/notes                -> add a note { symbol, body, source, handle? }
 ```
 
 RESTful, JSON, simple ([integration practices] / [feature-development practices]).
 The CLI calls these exact endpoints — no special backend path for agents; the
-only difference is `source: "cli"` on posted notes.
+only difference is `source: "cli"` on posted notes. An optional `handle` on a
+posted note sets its `author`.
 
 ## Planned repository layout
 

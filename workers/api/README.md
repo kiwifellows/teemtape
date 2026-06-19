@@ -14,10 +14,12 @@ stores **anonymous notes + watchlists** in **Cloudflare D1**, caches quotes in
 | `GET /api/quotes?symbols=AAPL,MSFT` | Delayed quotes (cached in KV) |
 | `GET /api/symbols` | Paginated SEC symbol catalog (see below) |
 | `POST /api/watchlists` | Create an anonymous watchlist (returns MD5-shaped token) |
+| `POST /api/handles` | Claim `{ handle }`, or auto-generate a unique one (empty body) |
+| `GET /api/handles/:handle` | Check availability (`{ handle, available }`) |
 | `GET /api/w/:token` | Watchlist + symbols |
 | `POST /api/w/:token/symbols` | Add a symbol (`{ "symbol": "AAPL" }`) |
 | `GET /api/w/:token/notes?symbol=AAPL` | Notes for a symbol (newest first) |
-| `POST /api/w/:token/notes` | Add a note (`{ symbol, body, source }`) |
+| `POST /api/w/:token/notes` | Add a note (`{ symbol, body, source, handle? }`) |
 
 ### `GET /api/symbols`
 
@@ -32,9 +34,18 @@ Paginated list of SEC company tickers (100 per page by default).
 | `symbol` | — | Filter by ticker substring |
 | `name` | — | Filter by company name substring |
 
-Notes posted with `source: "cli"` are attributed to `agent-cli`; web notes get an
-anonymous `anon-xxxxxx` handle derived from the watchlist token. All responses are
-JSON with permissive CORS.
+### Anonymous handles
+
+So collaborators on a shared watchlist can tell each other apart without signing
+in, a note may carry an optional `handle` (e.g. `user1234`) which becomes its
+`author`. Handles are auto-generated and globally unique via `POST /api/handles`
+(uniqueness enforced by the `handle` table), are stored client-side, and can be
+changed to any still-available value. Handles are validated as 3–20 characters
+(letters, numbers, `-`, `_`) starting with a letter, and normalized to lowercase.
+
+When a note has no `handle`, posts with `source: "cli"` are attributed to
+`agent-cli`; web notes get an `anon-xxxxxx` handle derived from the watchlist
+token. All responses are JSON with permissive CORS.
 
 ## Run locally
 
@@ -161,7 +172,8 @@ workers/api/
 ├── wrangler.toml            # Worker config (dev defaults + [env.production])
 ├── migrations/
 │   ├── 0001_init.sql      # watchlists, notes
-│   └── 0002_symbols.sql   # SEC ticker reference data
+│   ├── 0002_symbols.sql   # SEC ticker reference data
+│   └── 0003_handles.sql   # anonymous handles (uniqueness)
 ├── src/
 │   ├── index.ts             # router + scheduled sync
 │   ├── env.ts               # binding types

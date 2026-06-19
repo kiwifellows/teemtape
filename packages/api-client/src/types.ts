@@ -35,12 +35,32 @@ export interface QuotesResponse {
 export interface Note {
   id: string;
   symbol: string;
-  /** Short anonymous handle, e.g. "anon-6f1ed0" or "agent-cli". */
+  /**
+   * The poster's anonymous handle, e.g. "user1234". Falls back to a
+   * token-derived label ("anon-6f1ed0") or "agent-cli" when no handle was set.
+   */
   author: string;
   source: NoteSource;
   body: string;
   /** ISO timestamp. */
   createdAt: string;
+}
+
+/**
+ * An anonymous handle: a short, human-friendly name (e.g. "user1234") that a
+ * person or agent picks once and reuses so collaborators on a shared watchlist
+ * can tell each other apart. Still anonymous — no account, email, or password.
+ */
+export interface Handle {
+  handle: string;
+  /** ISO timestamp the handle was first claimed. */
+  createdAt: string;
+}
+
+/** Result of checking whether a specific handle is still available. */
+export interface HandleAvailability {
+  handle: string;
+  available: boolean;
 }
 
 export interface NotesResponse {
@@ -59,6 +79,8 @@ export interface CreateNoteInput {
   symbol: string;
   body: string;
   source: NoteSource;
+  /** The poster's anonymous handle, e.g. "user1234". Optional. */
+  handle?: string;
 }
 
 /** A row in the SEC symbols reference catalog. */

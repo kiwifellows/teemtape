@@ -48,10 +48,21 @@ function quoteFor(symbol) {
   };
 }
 
+const HANDLE_RE = /^[a-z][a-z0-9_-]{2,19}$/;
+
+function normalizeHandle(raw) {
+  return typeof raw === "string" ? raw.trim().toLowerCase() : "";
+}
+
+function suggestHandle() {
+  return `user${1000 + Math.floor(Math.random() * 9000)}`;
+}
+
 /** Create a fresh mock server (not yet listening) with its own seeded state. */
 export function createMockServer() {
   const watchlists = seedWatchlists();
   const notes = seedNotes();
+  const handles = new Set();
 
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -76,6 +87,29 @@ export function createMockServer() {
       const watchlist = { token, symbols: [], createdAt: new Date().toISOString() };
       watchlists.set(token, watchlist);
       return send(res, 201, watchlist);
+    }
+
+    if (path === "/api/handles" && method === "POST") {
+      const body = await readJson(req);
+      if (body === null) return send(res, 400, { error: "invalid JSON body" });
+      const requested = normalizeHandle(body.handle);
+      if (requested) {
+        if (!HANDLE_RE.test(requested)) return send(res, 400, { error: `invalid handle: ${body.handle}` });
+        if (handles.has(requested)) return send(res, 409, { error: `handle already taken: ${requested}` });
+        handles.add(requested);
+        return send(res, 201, { handle: requested, createdAt: new Date().toISOString() });
+      }
+      let candidate = suggestHandle();
+      while (handles.has(candidate)) candidate = suggestHandle();
+      handles.add(candidate);
+      return send(res, 201, { handle: candidate, createdAt: new Date().toISOString() });
+    }
+
+    const handleMatch = path.match(/^\/api\/handles\/([^/]+)$/);
+    if (handleMatch && method === "GET") {
+      const handle = normalizeHandle(decodeURIComponent(handleMatch[1]));
+      if (!HANDLE_RE.test(handle)) return send(res, 400, { error: `invalid handle: ${handle}` });
+      return send(res, 200, { handle, available: !handles.has(handle) });
     }
 
     const wMatch = path.match(/^\/api\/w\/([^/]+)(\/symbols|\/notes)?$/);
@@ -113,7 +147,12 @@ export function createMockServer() {
           return send(res, 400, { error: "symbol and body are required" });
         }
         const source = body.source === "cli" ? "cli" : "web";
-        const author = source === "cli" ? "agent-cli" : `anon-${randomBytes(3).toString("hex")}`;
+        const handle = normalizeHandle(body.handle);
+        if (handle && !HANDLE_RE.test(handle)) {
+          return send(res, 400, { error: `invalid handle: ${body.handle}` });
+        }
+        if (handle) handles.add(handle);
+        const author = handle || (source === "cli" ? "agent-cli" : `anon-${randomBytes(3).toString("hex")}`);
         const note = {
           id: randomUUID().slice(0, 8),
           symbol: body.symbol.trim().toUpperCase(),

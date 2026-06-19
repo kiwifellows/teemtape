@@ -40,8 +40,24 @@ and `notes` work immediately. Once it's published you'll be able to run it as
 | `teemtape add <SYMBOL>` | Add a symbol to your watchlist |
 | `teemtape notes <SYMBOL>` | Read the anonymous note thread for a symbol |
 | `teemtape note <SYMBOL> -m "…"` | Post an anonymous note (tagged `source: cli`) |
+| `teemtape handle [name]` | Show, set, or generate your anonymous handle |
 | `teemtape share` | Print your shareable watchlist link |
 | `teemtape config` | Show resolved config (token masked) |
+
+### Anonymous handle
+
+So your notes are attributable on a shared watchlist (without signing in), the
+CLI uses a short **handle** like `user1234`. One is auto-generated and saved the
+first time you `init` or post a `note`; change it anytime:
+
+```bash
+teemtape handle                # show your current handle
+teemtape handle trader_jane    # claim a specific handle (must be available)
+teemtape handle --generate     # get a fresh, unique handle
+```
+
+The handle is stored in your config file and becomes the `author` on notes you
+post. It's a display identity, not a credential.
 
 ### Symbol search
 
@@ -59,6 +75,7 @@ teemtape search apple --limit 5 --json
 
 - `--api-url <url>` — Worker API base URL
 - `--token <token>` — watchlist token
+- `--handle <name>` — anonymous handle for posted notes
 - `--web-url <url>` — web base URL for share links
 - `--json` — machine-readable JSON output (handy for agents)
 
@@ -70,6 +87,7 @@ Resolved with precedence: **CLI flags > env vars > config file > defaults**.
 | ------- | ---- | ------- | ------- |
 | API URL | `--api-url` | `TEEMTAPE_API_URL` | `https://api.teemtape.com` |
 | Token | `--token` | `TEEMTAPE_TOKEN` | (none) |
+| Handle | `--handle` | `TEEMTAPE_HANDLE` | (auto-generated on first use) |
 | Web URL | `--web-url` | `TEEMTAPE_WEB_URL` | `https://www.teemtape.com` |
 
 The config file lives at `~/.config/teemtape/config.json` (or

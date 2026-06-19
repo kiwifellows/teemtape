@@ -7,12 +7,15 @@ export interface ResolvedConfig {
   apiUrl: string;
   webUrl: string;
   token?: string;
+  /** Anonymous handle (e.g. "user1234") attached to notes posted from the CLI. */
+  handle?: string;
 }
 
 export interface ConfigFlags {
   apiUrl?: string;
   webUrl?: string;
   token?: string;
+  handle?: string;
 }
 
 const DEFAULTS = {
@@ -30,6 +33,7 @@ interface StoredConfig {
   apiUrl?: string;
   webUrl?: string;
   token?: string;
+  handle?: string;
 }
 
 function readConfigFile(): StoredConfig {
@@ -50,12 +54,14 @@ export function resolveConfig(flags: ConfigFlags = {}): ResolvedConfig {
     apiUrl: process.env.TEEMTAPE_API_URL,
     webUrl: process.env.TEEMTAPE_WEB_URL,
     token: process.env.TEEMTAPE_TOKEN,
+    handle: process.env.TEEMTAPE_HANDLE,
   };
 
   return {
     apiUrl: flags.apiUrl ?? env.apiUrl ?? file.apiUrl ?? DEFAULTS.apiUrl,
     webUrl: flags.webUrl ?? env.webUrl ?? file.webUrl ?? DEFAULTS.webUrl,
     token: flags.token ?? env.token ?? file.token,
+    handle: flags.handle ?? env.handle ?? file.handle,
   };
 }
 

@@ -478,6 +478,106 @@
   padding: var(--space-5);
 }
 
+/* Inline text button (e.g. "change" handle) */
+.linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.linkish:hover {
+  text-decoration: none;
+}
+
+/* Handle picker dialog */
+.handle-dialog {
+  width: 420px;
+}
+
+.handle-body {
+  padding: var(--space-4);
+}
+
+.handle-intro {
+  margin: 0 0 var(--space-4);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.handle-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: var(--space-2);
+}
+
+.handle-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.handle-at {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--text-faint);
+}
+
+.handle-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  padding: 9px 12px;
+}
+
+.handle-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.handle-input:disabled {
+  opacity: 0.6;
+}
+
+.handle-hint {
+  margin: var(--space-3) 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.handle-hint.error {
+  color: var(--down);
+}
+
+.handle-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 480px) {
+  .handle-input-row {
+    flex-wrap: wrap;
+  }
+}
+
 /* ---------- Responsive / mobile ---------- */
 
 @media (max-width: 768px) {

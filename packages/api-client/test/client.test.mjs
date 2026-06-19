@@ -37,6 +37,36 @@ test("client round-trips against the mock API", async (t) => {
   assert.equal(after.notes[0].body, "hello from cli");
 });
 
+test("client claims handles and attributes notes to them", async (t) => {
+  const server = createMockServer();
+  server.listen(0);
+  await once(server, "listening");
+  const { port } = server.address();
+  const baseUrl = `http://localhost:${port}`;
+  t.after(() => server.close());
+
+  const client = new TeemtapeClient({ baseUrl });
+
+  // auto-generated handle
+  const generated = await client.createHandle();
+  assert.match(generated.handle, /^user\d{4}$/);
+
+  // claim a specific handle, then a duplicate conflicts
+  const claimed = await client.createHandle("trader_jane");
+  assert.equal(claimed.handle, "trader_jane");
+  assert.equal((await client.checkHandle("trader_jane")).available, false);
+  await assert.rejects(
+    () => client.createHandle("trader_jane"),
+    (err) => err instanceof ApiError && err.status === 409,
+  );
+
+  // notes carry the handle as the author
+  const created = await client.createWatchlist();
+  const scoped = new TeemtapeClient({ baseUrl, token: created.token });
+  const note = await scoped.addNote({ symbol: "AAPL", body: "hi", source: "web", handle: "trader_jane" });
+  assert.equal(note.author, "trader_jane");
+});
+
 test("client surfaces API errors and missing-token errors", async (t) => {
   const server = createMockServer();
   server.listen(0);

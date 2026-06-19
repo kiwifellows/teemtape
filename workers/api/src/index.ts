@@ -1,11 +1,21 @@
 import type { Env } from "./env.js";
 import { error, HttpError, json, noContent } from "./http.js";
 import { getQuotes } from "./quotes.js";
-import { addNote, addSymbol, createWatchlist, getNotes, getWatchlist } from "./repo.js";
+import {
+  addNote,
+  addSymbol,
+  checkHandle,
+  createHandle,
+  createWatchlist,
+  getNotes,
+  getWatchlist,
+} from "./repo.js";
 import { listSymbolsCatalog } from "./symbols.js";
 import { syncSymbols } from "./sync.js";
 import {
+  parseHandle,
   parseNoteBody,
+  parseOptionalHandle,
   parseOptionalSearch,
   parseSource,
   parseSymbol,
@@ -16,8 +26,10 @@ import {
 } from "./validation.js";
 
 async function readJson(request: Request): Promise<Record<string, unknown>> {
+  const text = await request.text();
+  if (!text.trim()) return {};
   try {
-    const data = await request.json();
+    const data = JSON.parse(text);
     return typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
   } catch {
     throw new HttpError(400, "invalid JSON body");
@@ -61,6 +73,20 @@ async function route(request: Request, env: Env): Promise<Response> {
     return json(await createWatchlist(env), 201);
   }
 
+  // POST /api/handles — claim a handle (body.handle) or generate a unique one.
+  if (path === "/api/handles" && method === "POST") {
+    const body = await readJson(request);
+    const requested = parseOptionalHandle(body.handle);
+    return json(await createHandle(env, requested), 201);
+  }
+
+  // GET /api/handles/:handle — check availability of a specific handle.
+  const handleMatch = path.match(/^\/api\/handles\/([^/]+)$/);
+  if (handleMatch && method === "GET") {
+    const handle = parseHandle(decodeURIComponent(handleMatch[1]!));
+    return json(await checkHandle(env, handle));
+  }
+
   // /api/w/:token[/symbols|/notes]
   const match = path.match(/^\/api\/w\/([^/]+)(\/symbols|\/notes)?$/);
   if (match) {
@@ -89,6 +115,7 @@ async function route(request: Request, env: Env): Promise<Response> {
         symbol,
         body: parseNoteBody(body.body),
         source: parseSource(body.source),
+        handle: parseOptionalHandle(body.handle),
       });
       return json(note, 201);
     }
