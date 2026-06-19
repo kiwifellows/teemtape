@@ -1,3 +1,7 @@
+## [v0.1.2] - 2026-06-19
+
+- Maintenance release.
+
 ## [v0.1.1] - 2026-06-19
 
 - web: GitHub link, favicon, feedback footer, and mobile responsive layout ([#9](https://github.com/kiwifellows/teemtape/pull/9)) (@kiwifellows)
