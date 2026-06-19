@@ -50,6 +50,19 @@ test("default api url is api.teemtape.com", async () => {
   assert.equal(JSON.parse(stdout).apiUrl, "https://api.teemtape.com");
 });
 
+test("network failures report an actionable hint, not a bare 'fetch failed'", async () => {
+  // Port 1 is reserved and refuses connections, so fetch fails fast.
+  await assert.rejects(
+    () => cli(["--api-url", "http://127.0.0.1:1", "init"]),
+    (err) => {
+      assert.equal(err.code, 1);
+      assert.match(err.stderr, /could not reach the API/i);
+      assert.doesNotMatch(err.stderr, /^error: fetch failed$/im);
+      return true;
+    },
+  );
+});
+
 test("search: requires a query or filter", async () => {
   await assert.rejects(() => cli(["search"]), (err) => {
     assert.equal(err.code, 1);
