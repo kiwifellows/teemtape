@@ -21,14 +21,25 @@ export interface Quote {
   pct: number;
   /** ISO timestamp of the (delayed) quote. */
   asOf: string;
+  /**
+   * ISO timestamp of when this quote was fetched and written into the cache.
+   * Present on every response (whether served from cache or freshly fetched).
+   * Two callers within the same cache window will see the same value.
+   */
+  cachedAt: string;
 }
 
 export interface QuotesResponse {
   quotes: Quote[];
   /** How many seconds the data is intentionally delayed by. */
   delayedSeconds: number;
-  /** Upstream data source, e.g. "polygon" | "massive" | "mock". */
+  /**
+   * Upstream data source that produced the quotes.
+   * One of "polygon" | "yahoo" | "stooq" | "sample".
+   */
   source: string;
+  /** How many seconds quote data is held in the shared cache. */
+  cacheTtlSeconds: number;
 }
 
 /** An anonymous note attached to a (watchlist, symbol). */

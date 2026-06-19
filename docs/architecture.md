@@ -117,14 +117,146 @@ each client picks a short, human-friendly **handle** once and reuses it:
   cryptographically random source (not from guessable input) and only travel over
   HTTPS ([security practices]: secure defaults, encrypt in transit).
 
+## Quote data sources
+
+The Worker supports four quote providers, tried in priority order. The list is
+configured via `QUOTES_PROVIDER` (comma-separated, e.g. `"yahoo,stooq,polygon,sample"`):
+
+| Provider | Key required? | Data | Notes |
+|----------|--------------|------|-------|
+| **yahoo** | No | Yahoo Finance v8 chart API — regular-market price + previous close | Free, no account. Called directly via HTTP (the `yahoo-finance2` npm package uses Node.js internals that cannot run in a Cloudflare Worker, so we call the same underlying HTTP endpoint directly). |
+| **stooq** | No | Stooq CSV endpoint — end-of-day OHLC | Free, no account. Lightweight CSV response. |
+| **polygon** | `POLYGON_API_KEY` | Polygon previous-day aggregate | Free tier subject to rate limits; silently skipped when the key is absent. |
+| **sample** | No | Deterministic hardcoded data | Always available; used in dev and as the final fallback. |
+
+The default is `QUOTES_PROVIDER="yahoo,stooq,sample"`. Add `polygon` to the list
+(and set `POLYGON_API_KEY`) to include it in the chain.
+
+### When are external APIs called?
+
+External quote APIs (Yahoo, Stooq, Polygon) are called **only on a KV cache miss**.
+
+```
+GET /api/quotes?symbols=AAPL,GOOG
+         │
+         ▼
+  For each symbol:
+    Check KV key "quote:v2:{symbol}"
+         │
+    ┌────┴────┐
+    │ HIT     │ → return cached Quote (no external call)
+    └────┬────┘
+         │ MISS
+         ▼
+    Try providers in order (yahoo → stooq → polygon → sample)
+    First success → write to KV with QUOTE_CACHE_TTL_SECONDS TTL
+         │
+         ▼
+    Return Quote
+```
+
+The key design point: **the cache is shared across all callers**. If user1
+requests GOOG at 8:20 am and user2 requests GOOG at 8:24 am, the second request
+is served entirely from KV with no external API call (given the default 5-minute
+TTL).
+
 ## Delayed quotes (~1 minute)
 
-- The Worker fetches quotes from the Polygon/Massive free tier and serves them
-  with an intentional ~1-minute delay, surfaced in the UI with a "Delayed ~1 min"
-  badge ([design practices]: make state clear and informative).
-- Quote responses are cached in KV with a short TTL to stay within free-tier
-  rate limits and to keep the app fast ([integration practices]: cache to reduce
-  API calls; add resilience when we see real failures, not before).
+- The Worker fetches quotes and serves them with an intentional ~1-minute delay,
+  surfaced in the UI with a "Delayed ~1 min" badge ([design practices]: make
+  state clear and informative).
+- `QUOTE_DELAY_SECONDS` (default `60`) is subtracted from the quote's `asOf`
+  timestamp so the UI can display the correct data time.
+- This is informational only — teemtape is not a trading app.
+
+## Quote caching (shared KV, 5-minute TTL)
+
+All quote data is cached in **Cloudflare KV** under the key `quote:v2:{symbol}`.
+This is **not per-user** — it is a global, shared cache.
+
+| Aspect | Value |
+|--------|-------|
+| Binding | `QUOTES_CACHE` KV namespace |
+| Key | `quote:v2:{symbol}` (e.g. `quote:v2:AAPL`) |
+| TTL | `QUOTE_CACHE_TTL_SECONDS` (default `300` s = 5 min) |
+| Minimum | 60 s (Cloudflare KV floor) |
+| Scope | Shared — identical for every user and every agent |
+
+Each cached quote includes a `cachedAt` ISO timestamp so clients can show
+"price cached at 8:20:14 am" alongside the delayed `asOf` time.
+
+Rate-limit counters also live in the same KV namespace under the `rl:` prefix
+(see [API guardrails](#api-guardrails) below). Keys are short-lived (120 s TTL)
+and logically separate from quote data.
+
+## API guardrails
+
+The API is intentionally public (no user accounts, anonymous notes). The
+following controls prevent abuse:
+
+### 1. IP rate limiting (default: 60 req/min per IP)
+
+Every request (except `/health` and `OPTIONS`) passes through a KV-backed
+sliding-window rate limiter in `workers/api/src/rate-limit.ts`.
+
+| Setting | Default | How to change |
+|---------|---------|---------------|
+| `RATE_LIMIT_RPM` | `60` | Set in `wrangler.toml` `[vars]` (or `wrangler secret put` for prod) |
+| Disable | — | Set `RATE_LIMIT_RPM=0` |
+
+When exceeded the API returns `429 Too Many Requests` with a `Retry-After`
+header (seconds until the current minute window resets).
+
+Cloudflare Workers also sit behind Cloudflare's network, which provides
+additional DDoS protection and connection limiting at the edge — before requests
+reach the Worker at all.
+
+### 2. Optional static API key (`X-Api-Key` header)
+
+Set the `API_KEY` secret (`wrangler secret put API_KEY`) to require all callers
+to include:
+
+```
+X-Api-Key: <your-secret-key>
+```
+
+When `API_KEY` is **not set**, the API remains fully public (suitable for the
+anonymous-notes model). When set, any request missing or providing the wrong key
+receives `401 Unauthorized`. The health check endpoint (`/`, `/health`) is always
+exempt.
+
+This is appropriate for restricting the API to known agents or internal tooling.
+For a public consumer app, rely on rate limiting instead.
+
+### 3. Input validation (existing)
+
+All inputs are validated in `workers/api/src/validation.ts`:
+
+- Symbols: regex `^[A-Z][A-Z0-9.\-]{0,9}$`, max 50 per query
+- Note bodies: max 2 000 characters
+- Watchlist tokens: exactly 32 hex characters
+- Handles: 3–20 characters, `[a-z0-9_-]`, starts with a letter
+- Pagination offsets / limits: bounded integers
+
+### 4. Parameterised queries (existing)
+
+All D1 queries use `prepare().bind()` — no string interpolation, no SQL injection.
+
+### 5. No PII collected (by design)
+
+No email, password, or real identity is stored. The watchlist token is a
+capability bearer (the URL is the credential). Anonymous handles are
+display-only — not a login mechanism.
+
+### Summary: what a raw curl / Postman request can do
+
+| Action | Result without API_KEY set | Result with API_KEY set |
+|--------|---------------------------|------------------------|
+| GET /api/quotes | ✅ Works (rate-limited) | ❌ 401 (no key) |
+| POST /api/w/:token/notes | ✅ Works (rate-limited + input validation) | ❌ 401 |
+| Flood requests | ❌ 429 after 60/min | ❌ 401 |
+| SQL injection | ❌ Blocked by parameterised queries | ❌ 401 + blocked |
+| GET /health | ✅ Always works | ✅ Always works |
 
 ## API surface (draft, shared by web + mobile + CLI)
 
