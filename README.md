@@ -7,6 +7,29 @@ learning how to build software **incrementally with agentic AI**.
 > **Not a trading app.** There is no order entry or money movement — just delayed
 > quotes and notes. Data is informational only.
 
+## Use straightaway
+
+[https://teemtape.com](https://teemtape.com) for web/mobile version.
+
+Install CLI (For Ops/Agents):
+
+```
+npm i @teemtape/cli -g
+#setup your config and get a URL for sharing with web users
+teemtape init
+#search your first stock and add to your watchlist
+teemtape search "Space Explo"
+teemtape add SPCX
+#list my watchist (all my stocks for this token)
+teemtape list
+#add a note for a stock
+teemtape note SPCX -m "Cursor purchased for 60bn What?!!?"
+#view notes for a stock (includes any other user you have shared this with)
+teemtape notes SPCX
+#view someone else's token
+teemtape list --token <some_token_from_url>
+```
+
 ## Status
 
 - **Phase 1 — Wireframes:** done ([`/wireframes`](wireframes)).
@@ -15,7 +38,7 @@ learning how to build software **incrementally with agentic AI**.
   - **M1 — CLI:** done — first client, built on the shared contract ([`packages/cli`](packages/cli)).
   - Next: iterate on the CLI, then the desktop React app (M2). See [`docs/roadmap.md`](docs/roadmap.md).
 
-### Try it now
+### Try it now, locally
 
 Run the real backend locally (serves deterministic **sample** quotes with no API key):
 
