@@ -8,6 +8,7 @@ export async function configCommand(ctx: Context): Promise<void> {
     apiUrl: ctx.config.apiUrl,
     webUrl: ctx.config.webUrl,
     token: maskToken(ctx.config.token),
+    handle: ctx.config.handle ?? "(none)",
     configFile: configFilePath(),
   };
   if (ctx.json) {
@@ -18,5 +19,6 @@ export async function configCommand(ctx: Context): Promise<void> {
   process.stdout.write(`  api url   : ${view.apiUrl}\n`);
   process.stdout.write(`  web url   : ${view.webUrl}\n`);
   process.stdout.write(`  token     : ${view.token}\n`);
+  process.stdout.write(`  handle    : ${view.handle}\n`);
   process.stdout.write(`  ${c.dim(`config file: ${view.configFile}`)}\n`);
 }

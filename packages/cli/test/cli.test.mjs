@@ -4,6 +4,10 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { once } from "node:events";
+import { createMockServer } from "../../mock-server/src/server.mjs";
 
 const run = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -61,6 +65,41 @@ test("network failures report an actionable hint, not a bare 'fetch failed'", as
       return true;
     },
   );
+});
+
+test("config: handle defaults to (none) and reflects the --handle flag", async () => {
+  const off = await cli(["--json", "config"]);
+  assert.equal(JSON.parse(off.stdout).handle, "(none)");
+
+  const on = await cli(["--json", "--handle", "user1234", "config"]);
+  assert.equal(JSON.parse(on.stdout).handle, "user1234");
+});
+
+test("handle: reports no handle set when none is configured", async () => {
+  const { stdout } = await cli(["--json", "handle"]);
+  assert.equal(JSON.parse(stdout).handle, null);
+});
+
+test("handle: claims a handle and persists it to config", async (t) => {
+  const server = createMockServer();
+  server.listen(0);
+  await once(server, "listening");
+  const { port } = server.address();
+  t.after(() => server.close());
+
+  // Isolated config dir so the saved handle persists between invocations.
+  const configHome = mkdtempSync(join(tmpdir(), "teemtape-cli-"));
+  const env = {
+    TEEMTAPE_API_URL: `http://127.0.0.1:${port}`,
+    XDG_CONFIG_HOME: configHome,
+  };
+
+  const claimed = await cli(["--json", "handle", "Trader_Jane"], env);
+  assert.equal(JSON.parse(claimed.stdout).handle, "trader_jane");
+
+  // a later invocation reads the handle from the saved config
+  const shown = await cli(["--json", "handle"], env);
+  assert.equal(JSON.parse(shown.stdout).handle, "trader_jane");
 });
 
 test("search: requires a query or filter", async () => {

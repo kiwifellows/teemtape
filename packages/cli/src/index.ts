@@ -3,6 +3,7 @@ import { ApiError } from "@teemtape/api-client";
 import { Command } from "commander";
 import { addCommand } from "./commands/add.js";
 import { configCommand } from "./commands/config.js";
+import { handleCommand } from "./commands/handle.js";
 import { initCommand } from "./commands/init.js";
 import { listCommand } from "./commands/list.js";
 import { noteCommand } from "./commands/note.js";
@@ -23,6 +24,7 @@ program
   .version("0.0.0")
   .option("--api-url <url>", "Worker API base URL (env: TEEMTAPE_API_URL)")
   .option("--token <token>", "watchlist token (env: TEEMTAPE_TOKEN)")
+  .option("--handle <name>", "anonymous handle for posted notes (env: TEEMTAPE_HANDLE)")
   .option("--web-url <url>", "web app base URL used for share links (env: TEEMTAPE_WEB_URL)")
   .option("--json", "output machine-readable JSON (handy for agents)")
   .showHelpAfterError();
@@ -32,6 +34,7 @@ function globalsOf(command: Command): GlobalFlags {
   return {
     apiUrl: o.apiUrl as string | undefined,
     token: o.token as string | undefined,
+    handle: o.handle as string | undefined,
     webUrl: o.webUrl as string | undefined,
     json: Boolean(o.json),
   };
@@ -121,6 +124,15 @@ program
   .action(async (_opts, command: Command) => run(command, (ctx) => shareCommand(ctx)));
 
 program
+  .command("handle")
+  .argument("[name]", "claim a specific handle, e.g. user1234")
+  .option("--generate", "generate a fresh, unique handle")
+  .description("show, set, or generate your anonymous handle")
+  .action(async (name: string | undefined, opts: { generate?: boolean }, command: Command) =>
+    run(command, (ctx) => handleCommand(ctx, name, opts)),
+  );
+
+program
   .command("config")
   .description("show the resolved configuration (token masked)")
   .action(async (_opts, command: Command) => run(command, (ctx) => configCommand(ctx)));
@@ -145,6 +157,8 @@ Examples:
   $ teemtape list
   $ teemtape notes NVDA
   $ teemtape note AAPL --message "Earnings call scheduled."
+  $ teemtape handle               # show your anonymous handle
+  $ teemtape handle trader_jane   # claim a specific handle
   $ teemtape share
   $ teemtape list --json        # machine-readable output for agents
 
