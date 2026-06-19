@@ -1,5 +1,7 @@
 import type {
   CreateNoteInput,
+  Handle,
+  HandleAvailability,
   Note,
   NotesResponse,
   QuotesResponse,
@@ -79,6 +81,22 @@ export class TeemtapeClient {
   /** Create a new anonymous watchlist and return its MD5 token. */
   async createWatchlist(): Promise<Watchlist> {
     return this.request<Watchlist>(`/api/watchlists`, { method: "POST" });
+  }
+
+  /**
+   * Claim an anonymous handle. Pass a `handle` to request a specific one (throws
+   * ApiError 409 if taken); omit it to get a fresh, unique, auto-generated one.
+   */
+  async createHandle(handle?: string): Promise<Handle> {
+    return this.request<Handle>(`/api/handles`, {
+      method: "POST",
+      body: JSON.stringify(handle ? { handle } : {}),
+    });
+  }
+
+  /** Check whether a specific handle is still available (not yet claimed). */
+  async checkHandle(handle: string): Promise<HandleAvailability> {
+    return this.request<HandleAvailability>(`/api/handles/${encodeURIComponent(handle)}`);
   }
 
   /** Fetch a watchlist (symbols + metadata) by token. */
