@@ -1,3 +1,7 @@
+## [v0.1.3] - 2026-06-19
+
+- Maintenance release.
+
 ## [v0.1.2] - 2026-06-19
 
 - Maintenance release.
