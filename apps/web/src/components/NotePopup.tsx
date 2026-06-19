@@ -1,8 +1,9 @@
 import type { Note } from "@teemtape/api-client";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { anonHandle } from "../config";
 import { useApiForToken } from "../context/ApiContext";
+import { useHandle } from "../hooks/useHandle";
 import { fmtRelativeTime } from "../lib/format";
+import { HandleDialog } from "./HandleDialog";
 
 export function NotePopup({
   token,
@@ -16,6 +17,7 @@ export function NotePopup({
   onNotePosted: () => void;
 }) {
   const client = useApiForToken(token);
+  const { handle, setHandle } = useHandle();
   const titleId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -23,6 +25,9 @@ export function NotePopup({
   const [error, setError] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
+  const [showHandleDialog, setShowHandleDialog] = useState(false);
+  // When true, posting should resume automatically after a handle is chosen.
+  const [postAfterHandle, setPostAfterHandle] = useState(false);
 
   const loadNotes = useCallback(async () => {
     setLoading(true);
@@ -53,21 +58,44 @@ export function NotePopup({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  const postNote = async () => {
-    const trimmed = body.trim();
-    if (!trimmed || posting) return;
+  const doPost = useCallback(
+    async (asHandle: string) => {
+      const trimmed = body.trim();
+      if (!trimmed || posting) return;
 
-    setPosting(true);
-    setError(null);
-    try {
-      const note = await client.addNote({ symbol, body: trimmed, source: "web" });
-      setNotes((prev) => [...prev, note]);
-      setBody("");
-      onNotePosted();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to post note");
-    } finally {
-      setPosting(false);
+      setPosting(true);
+      setError(null);
+      try {
+        const note = await client.addNote({ symbol, body: trimmed, source: "web", handle: asHandle });
+        setNotes((prev) => [...prev, note]);
+        setBody("");
+        onNotePosted();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to post note");
+      } finally {
+        setPosting(false);
+      }
+    },
+    [body, client, onNotePosted, posting, symbol],
+  );
+
+  const postNote = () => {
+    if (!body.trim() || posting) return;
+    // First note from this browser: ask for a handle, then post automatically.
+    if (!handle) {
+      setPostAfterHandle(true);
+      setShowHandleDialog(true);
+      return;
+    }
+    void doPost(handle);
+  };
+
+  const onHandleSaved = (next: string) => {
+    setHandle(next);
+    setShowHandleDialog(false);
+    if (postAfterHandle) {
+      setPostAfterHandle(false);
+      void doPost(next);
     }
   };
 
@@ -139,12 +167,29 @@ export function NotePopup({
           />
           <div className="compose-foot">
             <span className="faint" style={{ fontSize: 12 }}>
-              Posting anonymously as <span className="num">{anonHandle(token)}</span>
+              {handle ? (
+                <>
+                  Posting as <span className="num">{handle}</span>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="linkish"
+                    onClick={() => {
+                      setPostAfterHandle(false);
+                      setShowHandleDialog(true);
+                    }}
+                  >
+                    change
+                  </button>
+                </>
+              ) : (
+                <>You’ll pick an anonymous handle when you post.</>
+              )}
             </span>
             <button
               type="button"
               className="btn primary small"
-              onClick={() => void postNote()}
+              onClick={postNote}
               disabled={posting || !body.trim()}
             >
               {posting ? "Posting…" : "Post note"}
@@ -152,6 +197,18 @@ export function NotePopup({
           </div>
         </div>
       </div>
+
+      {showHandleDialog && (
+        <HandleDialog
+          client={client}
+          currentHandle={handle}
+          onSave={onHandleSaved}
+          onClose={() => {
+            setShowHandleDialog(false);
+            setPostAfterHandle(false);
+          }}
+        />
+      )}
     </div>
   );
 }

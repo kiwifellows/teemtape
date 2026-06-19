@@ -18,7 +18,20 @@ export function shareUrlForToken(token: string): string {
   return `${getWebUrl().replace(/\/$/, "")}/w/${token}`;
 }
 
-/** Short anonymous handle shown in the compose footer. */
+/** Short anonymous handle derived from a token (fallback when none is set). */
 export function anonHandle(token: string): string {
   return `anon-${token.slice(0, 6)}`;
+}
+
+/** Allowed shape for a user-chosen anonymous handle (case-insensitive). */
+export const HANDLE_PATTERN = /^[a-z][a-z0-9_-]{2,19}$/;
+
+/** Normalize a handle the same way the API does (trim + lowercase). */
+export function normalizeHandle(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+/** True when `raw` is a valid handle (after normalization). */
+export function isValidHandle(raw: string): boolean {
+  return HANDLE_PATTERN.test(normalizeHandle(raw));
 }
