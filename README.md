@@ -30,14 +30,6 @@ teemtape notes SPCX
 teemtape list --token <some_token_from_url>
 ```
 
-## Status
-
-- **Phase 1 — Wireframes:** done ([`/wireframes`](wireframes)).
-- **Phase 2 — Build (in progress):**
-  - **M0 — backend:** done — Cloudflare Worker + D1 + KV ([`workers/api`](workers/api)).
-  - **M1 — CLI:** done — first client, built on the shared contract ([`packages/cli`](packages/cli)).
-  - Next: iterate on the CLI, then the desktop React app (M2). See [`docs/roadmap.md`](docs/roadmap.md).
-
 ### Try it now, locally
 
 Run the real backend locally (serves deterministic **sample** quotes with no API key):
@@ -75,6 +67,14 @@ teemtape/
 
 This is an npm-workspaces monorepo. The React apps (M2+) will be added under
 `apps/` as we build them.
+
+## Status
+
+- **Phase 1 — Wireframes:** done ([`/wireframes`](wireframes)).
+- **Phase 2 — Build (in progress):**
+  - **M0 — backend:** done — Cloudflare Worker + D1 + KV ([`workers/api`](workers/api)).
+  - **M1 — CLI:** done — first client, built on the shared contract ([`packages/cli`](packages/cli)).
+  - Next: iterate on the CLI, then the desktop React app (M2). See [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Wireframes
 
