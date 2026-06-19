@@ -73,6 +73,51 @@ describe("teemtape API", () => {
     expect(notes.map((n) => n.body)).toEqual(["from web", "from cli"]);
   });
 
+  it("generates, claims, and de-dupes anonymous handles", async () => {
+    // auto-generate a unique handle
+    const gen = await post("/api/handles");
+    expect(gen.status).toBe(201);
+    const { handle } = await body<{ handle: string }>(gen);
+    expect(handle).toMatch(/^user\d{4}$/);
+
+    // claiming the same handle again conflicts
+    const dup = await post("/api/handles", { handle });
+    expect(dup.status).toBe(409);
+
+    // a specific, free handle can be claimed (and is lower-cased)
+    const claim = await post("/api/handles", { handle: "Trader_Jane" });
+    expect(claim.status).toBe(201);
+    expect((await body<{ handle: string }>(claim)).handle).toBe("trader_jane");
+
+    // availability check reflects what's been claimed
+    const taken = await SELF.fetch(`${BASE}/api/handles/trader_jane`);
+    expect((await body<{ available: boolean }>(taken)).available).toBe(false);
+    const free = await SELF.fetch(`${BASE}/api/handles/somebody_new`);
+    expect((await body<{ available: boolean }>(free)).available).toBe(true);
+
+    // invalid handles are rejected
+    const bad = await post("/api/handles", { handle: "no" });
+    expect(bad.status).toBe(400);
+  });
+
+  it("attributes a note to the supplied handle", async () => {
+    const created = await post("/api/watchlists");
+    const { token } = await body<{ token: string }>(created);
+
+    const res = await post(`/api/w/${token}/notes`, {
+      symbol: "AAPL",
+      body: "handle note",
+      source: "web",
+      handle: "MoonWatcher",
+    });
+    expect(res.status).toBe(201);
+    expect((await body<{ author: string }>(res)).author).toBe("moonwatcher");
+
+    // the handle is reserved once it has authored a note
+    const avail = await SELF.fetch(`${BASE}/api/handles/moonwatcher`);
+    expect((await body<{ available: boolean }>(avail)).available).toBe(false);
+  });
+
   it("404s an unknown watchlist token", async () => {
     const res = await SELF.fetch(`${BASE}/api/w/${"a".repeat(32)}`);
     expect(res.status).toBe(404);

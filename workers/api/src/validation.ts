@@ -50,6 +50,31 @@ export function parseToken(raw: string): string {
   return raw;
 }
 
+const HANDLE_RE = /^[a-z][a-z0-9_-]{2,19}$/;
+
+/**
+ * Normalize + validate an anonymous handle. Handles are lower-cased so that
+ * uniqueness (and the share experience) is case-insensitive: "User1234" and
+ * "user1234" are the same person. Throws HttpError(400) on invalid input.
+ */
+export function parseHandle(raw: unknown): string {
+  if (typeof raw !== "string") throw new HttpError(400, "handle is required");
+  const handle = raw.trim().toLowerCase();
+  if (!HANDLE_RE.test(handle)) {
+    throw new HttpError(
+      400,
+      "invalid handle: use 3-20 characters (letters, numbers, - or _) starting with a letter",
+    );
+  }
+  return handle;
+}
+
+/** Parse an optional handle on a note. Returns undefined when absent/blank. */
+export function parseOptionalHandle(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null || raw === "") return undefined;
+  return parseHandle(raw);
+}
+
 function parseIntParam(raw: string | null, fallback: number, min: number, max: number): number {
   if (raw === null || raw === "") return fallback;
   const n = Number(raw);
