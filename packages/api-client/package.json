@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "description": "Shared typed client + types for the teemtape Worker API.",
   "license": "MIT",
+  "homepage": "https://github.com/kiwifellows/teemtape#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kiwifellows/teemtape.git",
+    "directory": "packages/api-client"
+  },
+  "bugs": {
+    "url": "https://github.com/kiwifellows/teemtape/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

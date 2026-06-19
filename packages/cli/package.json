@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "description": "teemtape CLI — list stocks and post anonymous notes from the terminal.",
   "license": "MIT",
+  "homepage": "https://github.com/kiwifellows/teemtape#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kiwifellows/teemtape.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/kiwifellows/teemtape/issues"
+  },
   "type": "module",
   "bin": {
     "teemtape": "./dist/index.js"
