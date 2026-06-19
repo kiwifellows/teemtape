@@ -88,6 +88,8 @@ remembered across pages.
 - Backend connects to the Polygon/Massive free API
 - Quotes delayed by ~1 minute (not real-time)
 - Anonymous notes on each symbol, from agents (CLI) and end users (web/mobile)
+- Anonymous handles (e.g. `user1234`) so collaborators on a shared watchlist can
+  tell each other apart — auto-generated, changeable, no sign-in required
 - Note popup when viewing a symbol
 - Personal, shareable watchlist link with an anonymous MD5 token in the URL
 

@@ -373,6 +373,86 @@
       ]
     },
     {
+      "name": "Handles",
+      "description": "Anonymous handles (e.g. user1234) — a sign-in-free display identity so collaborators on a shared watchlist can tell each other apart. Globally unique; stored client-side.",
+      "item": [
+        {
+          "name": "Generate Handle (auto)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.handle) pm.collectionVariables.set('handle', data.handle);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/handles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "handles"]
+            },
+            "description": "Generate a fresh, unique, never-used-before handle (e.g. user1234). Empty body. Saves the `handle` collection variable on success."
+          },
+          "response": []
+        },
+        {
+          "name": "Claim Specific Handle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"handle\": \"trader_jane\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/handles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "handles"]
+            },
+            "description": "Claim a specific handle. Normalized to lowercase. Returns 409 if already taken, 400 if invalid (3-20 chars, letters/numbers/-/_, starting with a letter)."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Handle Availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/handles/trader_jane",
+              "host": ["{{base_url}}"],
+              "path": ["api", "handles", "trader_jane"]
+            },
+            "description": "Check whether a handle is still available. Returns { handle, available }."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Notes",
       "item": [
         {
@@ -441,6 +521,29 @@
             "description": "Add an anonymous web note. Author is `anon-{first 6 chars of token}`."
           },
           "response": []
+        },
+        {
+          "name": "Add Note with Handle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"NVDA\",\n  \"body\": \"Watching the breakout\",\n  \"source\": \"web\",\n  \"handle\": \"{{handle}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/w/{{watchlist_token}}/notes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "w", "{{watchlist_token}}", "notes"]
+            },
+            "description": "Add a note attributed to an anonymous handle. The note `author` becomes the supplied handle (normalized to lowercase)."
+          },
+          "response": []
         }
       ]
     }
@@ -457,6 +560,12 @@
       "value": "abcdef1234567890abcdef1234567890",
       "type": "string",
       "description": "32-char hex watchlist token (auto-set by Create Watchlist, or paste manually)"
+    },
+    {
+      "key": "handle",
+      "value": "user1234",
+      "type": "string",
+      "description": "Anonymous handle (auto-set by Generate Handle, or paste manually)"
     }
   ]
 }
