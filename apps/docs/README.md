@@ -1,49 +1,53 @@
-# Starlight Starter Kit: Basics
+# @teemtape/docs
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+The teemtape documentation site, built with [Astro](https://astro.build) +
+[Starlight](https://starlight.astro.build). It documents teemtape for **end
+users** and **AI agents**, and pulls together reference material from across the
+monorepo (architecture, HTTP API, CLI, roadmap, releases, and the agent skill).
+
+## Develop
+
+From the repo root:
+
+```bash
+npm install
+npm run dev --workspace docs      # Astro dev server (usually http://localhost:4321)
+```
+
+Or from this folder:
+
+```bash
+npm install
+npm run dev
+```
+
+## Build
+
+```bash
+npm run build --workspace docs    # outputs to apps/docs/dist
+npm run preview --workspace docs  # preview the production build
+```
+
+## Structure
 
 ```
-npm create astro@latest -- --template starlight
-```
-
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro + Starlight project, you'll see the following folders and files:
-
-```
-.
-├── public/
+apps/docs/
+├── astro.config.mjs              # Starlight config: title, sidebar, footer
 ├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
+│   ├── components/Footer.astro   # adds the MIT / copyright footer
+│   └── content/docs/
+│       ├── start/                # what teemtape is, quick start, concepts
+│       ├── users/                # end-user guides (web, CLI, watchlists, handles, FAQ)
+│       ├── agents/               # agent collaboration, CLI, skill, JSON shapes
+│       ├── reference/            # architecture, API, CLI, config, roadmap, releases
+│       └── contributing/         # contributing, local dev, license
+└── public/                       # static assets (favicon)
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+Starlight serves each `.md`/`.mdx` file under `src/content/docs/` as a route based
+on its path. Edit the sidebar in `astro.config.mjs`.
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+## License
 
-Static assets, like favicons, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+MIT — Copyright (c) 2026 Benjamin Fellows. See [`LICENSE`](./LICENSE) and the
+repository root [`LICENSE`](../../LICENSE).

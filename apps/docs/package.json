@@ -2,6 +2,10 @@
   "name": "docs",
   "type": "module",
   "version": "0.0.1",
+  "private": true,
+  "description": "teemtape documentation site (Astro + Starlight).",
+  "license": "MIT",
+  "author": "Benjamin Fellows",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",

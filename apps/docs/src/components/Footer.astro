@@ -1,0 +1,28 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro';
+
+const year = new Date().getFullYear();
+---
+
+<Default><slot /></Default>
+
+<footer class="teemtape-copyright">
+	<p>
+		teemtape is open source under the{' '}
+		<a href="/contributing/license/">MIT License</a>. Copyright &copy; {year}
+		{' '}Benjamin Fellows.
+	</p>
+</footer>
+
+<style>
+	.teemtape-copyright {
+		margin-top: 1.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--sl-color-gray-5);
+		font-size: var(--sl-text-xs);
+		color: var(--sl-color-gray-3);
+	}
+	.teemtape-copyright a {
+		color: var(--sl-color-text-accent);
+	}
+</style>
