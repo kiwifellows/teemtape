@@ -28,7 +28,8 @@
   },
   "dependencies": {
     "@teemtape/api-client": "^0.1.1",
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "undici": "^7.28.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",

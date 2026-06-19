@@ -10,7 +10,10 @@ import { notesCommand } from "./commands/notes.js";
 import { searchCommand } from "./commands/search.js";
 import { shareCommand } from "./commands/share.js";
 import { createContext, type Context, type GlobalFlags } from "./context.js";
+import { configureProxyFromEnv, describeNetworkError } from "./net.js";
 import { c } from "./output.js";
+
+configureProxyFromEnv();
 
 const program = new Command();
 
@@ -53,9 +56,9 @@ function handleError(err: unknown): void {
     fail(`${err.message} (HTTP ${err.status})`);
     return;
   }
-  const cause = err instanceof Error ? (err.cause as { code?: string } | undefined) : undefined;
-  if (cause?.code === "ECONNREFUSED" || cause?.code === "ENOTFOUND") {
-    fail("could not reach the API. Is it running? For local testing run `npm run mock` in another terminal.");
+  const networkMessage = describeNetworkError(err);
+  if (networkMessage) {
+    fail(networkMessage);
     return;
   }
   fail(err instanceof Error ? err.message : String(err));
