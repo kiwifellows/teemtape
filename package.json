@@ -4,6 +4,7 @@
   "private": true,
   "description": "Open-source ticker app for commenting on stocks (CLI, web, mobile).",
   "license": "MIT",
+  "author": "Benjamin Fellows",
   "type": "module",
   "workspaces": [
     "apps/*",
