@@ -84,6 +84,26 @@ ordinary merges don't trigger a release.
    The publish step is idempotent — it skips a package if that exact version is
    already on npm, so the workflow is safe to re-run.
 
+### Human approval gates
+
+The flow is built so nothing ships without a human in the loop, and you can layer
+two independent approval gates:
+
+1. **Release PR review (Phase 1 → Phase 2).** Nothing is tagged, released, or
+   published until someone **merges** the `chore(release): v<version>` PR — the
+   merge *is* the approval. To require an explicit reviewer (not just a merge
+   click), add to the `main` ruleset: **Require a pull request before merging →
+   Require approvals**.
+2. **Pre-publish approval (Environments).** `tag-release.yml` runs in the
+   `release` environment. Configure it under **Settings → Environments → release
+   → Required reviewers** and the tag/release/npm-publish job will **pause after
+   merge and wait for an approver** to click **Approve** in the Actions run. With
+   no reviewers configured the environment is inert and the job runs straight
+   through.
+
+Use gate 1 alone for a lightweight "review the PR, merge to ship" flow, or add
+gate 2 when you want a second explicit sign-off right before publishing.
+
 ### Requirements
 
 - **`NPM_PACKAGE_TOKEN`** secret — an npm automation token with publish access to

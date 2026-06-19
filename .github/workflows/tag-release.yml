@@ -34,6 +34,12 @@ jobs:
   tag-release:
     runs-on: ubuntu-latest
     name: Tag, release, and publish to npm
+    # Optional manual approval gate. Configure the `release` environment under
+    # Settings → Environments and add "Required reviewers": the job will then
+    # pause after the release PR merges and wait for a human to approve before it
+    # tags, cuts the GitHub release, and publishes to npm. With no reviewers
+    # configured the environment is inert and the job runs straight through.
+    environment: release
     steps:
       - name: Checkout
         uses: actions/checkout@v4
