@@ -4,6 +4,7 @@
   "private": true,
   "description": "Dependency-free in-memory mock of the teemtape Worker API for local CLI/web testing.",
   "license": "MIT",
+  "author": "Benjamin Fellows",
   "type": "module",
   "bin": {
     "teemtape-mock": "./src/index.mjs"

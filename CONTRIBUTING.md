@@ -200,5 +200,6 @@ There is no enforced formatter yet; keep diffs readable and consistent with surr
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the
-MIT License (see `package.json` in each package).
+teemtape is released under the **MIT License**, Copyright (c) 2026 Benjamin
+Fellows (see [`LICENSE`](LICENSE)). By contributing, you agree that your
+contributions will be licensed under the same terms.
