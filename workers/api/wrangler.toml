@@ -64,7 +64,7 @@ custom_domain = true
 enabled = true
 
 [env.production.vars]
-QUOTES_PROVIDER = "yahoo,stooq,polygon,sample"
+QUOTES_PROVIDER = "yahoo,polygon,sample"
 QUOTE_DELAY_SECONDS = "60"
 QUOTE_CACHE_TTL_SECONDS = "300"
 RATE_LIMIT_RPM = "60"
