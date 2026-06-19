@@ -1,0 +1,170 @@
+name: Tag and release
+
+# Phase 2 of the release process.
+#
+# Runs after a release PR (opened by .github/workflows/release.yml) is merged
+# into `main`. It detects the freshly bumped version, then:
+#
+#   1. Creates the annotated tag `v<version>` on `main`. Tags live in
+#      refs/tags/* and are NOT subject to branch protection rules, so this works
+#      even though `main` only accepts changes via pull request.
+#   2. Cuts a downloadable GitHub release for that tag.
+#   3. Publishes @teemtape/api-client and @teemtape/cli to npm (with provenance).
+#
+# The release is keyed off the @teemtape/cli package version: when that version
+# has no matching `v<version>` tag yet, this workflow cuts it. Normal merges that
+# don't bump the version are no-ops because the tag already exists.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/cli/package.json"
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  tag-release:
+    runs-on: ubuntu-latest
+    name: Tag, release, and publish to npm
+    # Optional manual approval gate. Configure the `release` environment under
+    # Settings → Environments and add "Required reviewers": the job will then
+    # pause after the release PR merges and wait for a human to approve before it
+    # tags, cuts the GitHub release, and publishes to npm. With no reviewers
+    # configured the environment is inert and the job runs straight through.
+    environment: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+          scope: "@teemtape"
+
+      - name: Determine release version
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./packages/cli/package.json').version")"
+          TAG="v$VERSION"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New version detected: $VERSION (tag $TAG)"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        if: ${{ steps.version.outputs.release == 'true' }}
+        run: npm ci
+
+      - name: Build publishable packages
+        if: ${{ steps.version.outputs.release == 'true' }}
+        run: |
+          set -euo pipefail
+          npm run build --workspace @teemtape/api-client
+          npm run build --workspace @teemtape/cli
+
+      - name: Test publishable packages
+        if: ${{ steps.version.outputs.release == 'true' }}
+        run: |
+          set -euo pipefail
+          npm run test --workspace @teemtape/api-client --if-present
+          npm run test --workspace @teemtape/cli --if-present
+
+      - name: Create and push tag
+        if: ${{ steps.version.outputs.release == 'true' }}
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $VERSION"
+          git push origin "$TAG"
+
+      - name: Extract release notes from CHANGELOG.md
+        if: ${{ steps.version.outputs.release == 'true' }}
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -f CHANGELOG.md ]; then
+            awk -v tag="$TAG" '
+              $0 ~ "^## \\[" tag "\\]" { capture=1; next }
+              capture && /^## \[/ { exit }
+              capture { print }
+            ' CHANGELOG.md > /tmp/release-notes.md || true
+          fi
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "No CHANGELOG section found for $TAG — GitHub will auto-generate notes."
+          fi
+
+      - name: Create GitHub release
+        if: ${{ steps.version.outputs.release == 'true' }}
+        env:
+          # Prefer a PAT (RELEASE_TOKEN) so the published-release event can trigger
+          # any downstream release-event workflows. Falls back to the default
+          # token, which still creates the release.
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -s /tmp/release-notes.md ]; then
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --target main \
+              --title "$TAG" \
+              --notes-file /tmp/release-notes.md
+          else
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --target main \
+              --title "$TAG" \
+              --generate-notes
+          fi
+
+      - name: Publish @teemtape/api-client to npm
+        if: ${{ steps.version.outputs.release == 'true' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
+          PKG: "@teemtape/api-client"
+          VERSION: ${{ steps.version.outputs.version }}
+        run: bash scripts/npm-publish.sh
+
+      - name: Publish @teemtape/cli to npm
+        if: ${{ steps.version.outputs.release == 'true' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
+          PKG: "@teemtape/cli"
+          VERSION: ${{ steps.version.outputs.version }}
+        run: bash scripts/npm-publish.sh
+
+      - name: Summary
+        if: ${{ steps.version.outputs.release == 'true' }}
+        run: |
+          {
+            echo "### Released ${{ steps.version.outputs.tag }}"
+            echo
+            echo "- Tag: \`${{ steps.version.outputs.tag }}\`"
+            echo "- GitHub release: downloadable from the Releases page"
+            echo "- Published: \`@teemtape/api-client\`, \`@teemtape/cli\`"
+          } >> "$GITHUB_STEP_SUMMARY"

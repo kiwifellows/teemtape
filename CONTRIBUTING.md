@@ -170,7 +170,8 @@ merge to `main` (see CI below). Do not run destructive migrations without discus
 | -------- | ------- | ------------ |
 | [Deploy API (production)](.github/workflows/deploy-api.yml) | Push to `main` | Test, apply D1 migrations, deploy Worker to Cloudflare production |
 | [Deploy Web (production)](.github/workflows/deploy-web.yml) | Push to `main` (web or api-client paths) | Build and deploy `apps/web` to Cloudflare Pages |
-| [Update changelog](.github/workflows/changelog.yml) | GitHub release published | Prepends merged PRs to `CHANGELOG.md` |
+| [Prepare release](.github/workflows/release.yml) | Manual (`workflow_dispatch`) | Bump version, update `CHANGELOG.md`, open a release PR |
+| [Tag and release](.github/workflows/tag-release.yml) | Release PR merged to `main` | Tag `v<version>`, cut the GitHub release, publish to npm |
 
 Production deployment is **main only**. Feature branches are not deployed.
 
