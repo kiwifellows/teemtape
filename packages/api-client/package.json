@@ -1,6 +1,6 @@
 {
   "name": "@teemtape/api-client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Shared typed client + types for the teemtape Worker API.",
   "license": "MIT",
   "homepage": "https://github.com/kiwifellows/teemtape#readme",

@@ -1,6 +1,6 @@
 {
   "name": "@teemtape/mock-server",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Dependency-free in-memory mock of the teemtape Worker API for local CLI/web testing.",
   "license": "MIT",
