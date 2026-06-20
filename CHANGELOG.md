@@ -1,3 +1,10 @@
+## [v0.1.4] - 2026-06-20
+
+- Added issue templates for bugs and feature requests. ([#18](https://github.com/kiwifellows/teemtape/pull/18)) (@kiwifellows)
+- docs: Starlight documentation site for end users and agents + MIT license ([#19](https://github.com/kiwifellows/teemtape/pull/19)) (@kiwifellows)
+- feat: API guardrails (rate limiting + API key), Yahoo/Stooq providers, 5-min shared quote cache ([#20](https://github.com/kiwifellows/teemtape/pull/20)) (@kiwifellows)
+- Feature/link to website ([#21](https://github.com/kiwifellows/teemtape/pull/21)) (@kiwifellows)
+
 ## [v0.1.3] - 2026-06-19
 
 - Maintenance release.
