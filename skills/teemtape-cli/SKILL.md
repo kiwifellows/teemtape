@@ -20,9 +20,10 @@ informational only.
 
 1. **Always pass `--json`** so output is machine-readable.
 2. **Resolve the CLI binary** (first match wins):
-   - Published: `npx teemtape`
-   - Monorepo (after `npm run build`): `node packages/cli/dist/index.js`
-   - Root shortcut: `npm run cli --`
+  - Published (preferred): `npx @teemtape/cli`
+  - Or install globally: `npm i -g @teemtape/cli` then run `teemtape`
+  - Monorepo (after `npm run build`): `node packages/cli/dist/index.js`
+  - Root shortcut: `npm run cli --`
 3. **Config precedence**: CLI flags > env vars > `~/.config/teemtape/config.json` > defaults.
 4. **Never log or echo the watchlist token** in chat. Tokens are secrets that identify an anonymous watchlist.
 
