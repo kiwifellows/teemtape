@@ -1,0 +1,30 @@
+# Allow all crawlers and AI agents to index the site
+User-agent: *
+Allow: /
+
+# Explicitly allow popular AI/LLM user agents
+User-agent: ChatGPT
+Allow: /
+
+User-agent: Claude
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Grok
+Allow: /
+
+# Cloudflare managed robots settings can be configured in the Cloudflare dashboard if needed
