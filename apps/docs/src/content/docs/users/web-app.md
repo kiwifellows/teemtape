@@ -20,7 +20,7 @@ There are several routes:
   shareable URL.
 - **`/w/:token`** — opens a specific watchlist by its [token](/start/concepts/#watchlist-token).
   This is the URL you share with others.
-- **`/w/:token.md`** — returns a Markdown export of the watchlist, including symbols and notes.
+- **`/w/:token.md`** — Markdown export of symbols and notes (also **`/w/:token/markdown`** if `.md` routing fails)
 - **`/ai/watchlist/:token`** — returns a compact AI-friendly JSON payload with watchlist data and note comments.
 
 The watchlist page embeds JSON (symbols, notes, and API write endpoints) plus

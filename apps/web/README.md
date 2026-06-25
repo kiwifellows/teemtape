@@ -30,6 +30,7 @@ The dev server defaults to `VITE_API_URL=http://127.0.0.1:8787` (see `.env.devel
 - `/` — creates a new anonymous watchlist and redirects to `/w/:token`
 - `/w/:token` — watchlist table, notes popup, share link (Pages Function injects embedded JSON + API discovery)
 - `/w/:token.md` — Markdown export of watchlist symbols and notes
+- `/w/:token/markdown` — same Markdown export (fallback route)
 - `/ai/watchlist/:token` — agent JSON: watchlist, comments, and HTTP API map for posting notes
 
 ## Environment

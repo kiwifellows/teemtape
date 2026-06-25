@@ -4,13 +4,13 @@ import {
   JSON_HEADERS,
   passthroughError,
   resolveApiBase,
-  validateToken,
+  resolveWatchlistToken,
 } from "../../utils/watchlist.js";
 
 export async function onRequest(context) {
   const { request, env, params } = context;
-  const token = params?.token;
-  if (!validateToken(token)) {
+  const token = resolveWatchlistToken(params, request.url);
+  if (!token) {
     return new Response("not found", { status: 404 });
   }
 

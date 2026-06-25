@@ -20,6 +20,7 @@ also call that Worker endpoint directly on `api.teemtape.com`.
 | --- | --- |
 | `GET /w/:token` | Human HTML + embedded JSON, alternate links, API discovery |
 | `GET /w/:token.md` | Markdown export (symbols, notes, POST example) |
+| `GET /w/:token/markdown` | Same Markdown export (fallback if `.md` URL routing fails) |
 | `GET /ai/watchlist/:token` | Compact JSON: watchlist, per-symbol comments, write API map |
 
 All three validate `:token` as a 32-character lowercase hex string (same as the
