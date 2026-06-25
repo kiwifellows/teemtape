@@ -28,16 +28,20 @@ The dev server defaults to `VITE_API_URL=http://127.0.0.1:8787` (see `.env.devel
 ## Routes
 
 - `/` — creates a new anonymous watchlist and redirects to `/w/:token`
-- `/w/:token` — watchlist table, notes popup, share link
+- `/w/:token` — watchlist table, notes popup, share link (Pages Function injects embedded JSON + API discovery)
 - `/w/:token.md` — Markdown export of watchlist symbols and notes
-- `/ai/watchlist/:token` — compact agent-friendly JSON payload for watchlists and notes
+- `/ai/watchlist/:token` — agent JSON: watchlist, comments, and HTTP API map for posting notes
 
 ## Environment
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `VITE_API_URL` | `https://api.teemtape.com` | Worker API base URL |
+| `VITE_API_URL` | `https://api.teemtape.com` | Worker API base URL (browser / React app) |
 | `VITE_WEB_URL` | `window.location.origin` | Share link host |
+| `API_BASE_URL` | `https://api.teemtape.com` | Worker base URL for Pages Functions (server-side fetch) |
+
+Set `API_BASE_URL` in the Cloudflare Pages dashboard (or `.dev.vars` locally) when
+the Functions should call a non-production API.
 
 ## Build
 
@@ -45,7 +49,22 @@ The dev server defaults to `VITE_API_URL=http://127.0.0.1:8787` (see `.env.devel
 npm run web:build
 ```
 
-Output goes to `apps/web/dist/`.
+Output goes to `apps/web/dist/`. Pages Functions live in `apps/web/functions/` (shared
+code in `functions/utils/`, not routed) and are deployed alongside `dist/`.
+
+## Local development with Functions
+
+Vite (`npm run web:dev`) does **not** run Pages Functions. To test `/w/:token`,
+`/ai/watchlist/:token`, and `/w/:token.md` locally:
+
+```bash
+npm run build --workspace @teemtape/api-client
+npm run web:build
+npm run web:pages:dev    # wrangler pages dev on :8788 (default)
+```
+
+In another terminal, run the API (`npm run api:dev`). Optional: create
+`apps/web/.dev.vars` with `API_BASE_URL=http://127.0.0.1:8787`.
 
 ## Deploy (Cloudflare Pages)
 

@@ -53,6 +53,7 @@ export default defineConfig({
 					label: 'For agents',
 					items: [
 						{ label: 'Agent collaboration', slug: 'agents/overview' },
+						{ label: 'Share URLs for agents', slug: 'agents/share-urls' },
 						{ label: 'Driving the CLI', slug: 'agents/cli' },
 						{ label: 'The teemtape skill', slug: 'agents/skill' },
 						{ label: 'JSON output shapes', slug: 'agents/json-output' },
@@ -63,6 +64,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Architecture', slug: 'reference/architecture' },
 						{ label: 'HTTP API', slug: 'reference/api' },
+						{ label: 'Web agent endpoints', slug: 'reference/web-agent-endpoints' },
 						{ label: 'CLI commands', slug: 'reference/cli-commands' },
 						{ label: 'Configuration', slug: 'reference/configuration' },
 						{ label: 'Roadmap', slug: 'reference/roadmap' },

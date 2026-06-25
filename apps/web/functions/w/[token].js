@@ -1,32 +1,34 @@
-const TOKEN_RE = /^[0-9a-f]{32}$/;
-
-function safeJson(text) {
-  return text.replaceAll("</script>", "<\\/script>");
-}
+import {
+  alternateLinks,
+  apiDiscovery,
+  fetchAgentPayload,
+  HTML_HEADERS,
+  passthroughError,
+  resolveApiBase,
+  safeJson,
+  validateToken,
+  wantsJsonResponse,
+} from "../utils/watchlist.js";
 
 export async function onRequest(context) {
   const { request, env, params } = context;
   const token = params?.token;
-  if (!token || !TOKEN_RE.test(token)) {
+  if (!validateToken(token)) {
     return new Response("not found", { status: 404 });
   }
 
-  const apiBase = env.API_BASE_URL || "https://api.teemtape.com";
-  const watchlistRes = await fetch(`${apiBase}/api/w/${token}`, {
-    headers: { accept: "application/json" },
-  });
-
-  if (!watchlistRes.ok) {
-    const text = await watchlistRes.text();
-    return new Response(text, {
-      status: watchlistRes.status,
-      headers: {
-        "content-type": watchlistRes.headers.get("content-type") || "text/plain; charset=utf-8",
-      },
-    });
+  if (wantsJsonResponse(request)) {
+    return Response.redirect(new URL(`/ai/watchlist/${token}`, request.url).toString(), 302);
   }
 
-  const watchlist = await watchlistRes.json();
+  const apiBase = resolveApiBase(env);
+  const agentResult = await fetchAgentPayload(apiBase, token);
+  if (!agentResult.ok) {
+    return passthroughError(agentResult);
+  }
+
+  const { watchlist, stocks, truncated, totalSymbols, symbolLimit } = agentResult.payload;
+
   const staticHtmlUrl = new URL("/index.html", request.url).toString();
   const shellRes = await fetch(staticHtmlUrl);
   if (!shellRes.ok) {
@@ -34,30 +36,28 @@ export async function onRequest(context) {
   }
 
   let html = await shellRes.text();
-  const alternateJson = `${apiBase}/api/w/${token}`;
-  const alternateAi = new URL(`/ai/watchlist/${token}`, request.url).toString();
-  const alternateMd = new URL(`/w/${token}.md`, request.url).toString();
-  const embeddedData = safeJson(
-    JSON.stringify({
-      watchlist,
-      alternate: {
-        json: alternateJson,
-        ai: alternateAi,
-        markdown: alternateMd,
-      },
-    }),
-  );
+  const alternate = alternateLinks(apiBase, token, request.url);
+  const payload = {
+    watchlist,
+    stocks,
+    api: apiDiscovery(apiBase, token, request.url),
+    alternate,
+  };
+  if (truncated) {
+    payload.truncated = true;
+    payload.totalSymbols = totalSymbols;
+    payload.symbolLimit = symbolLimit;
+  }
 
+  const embeddedData = safeJson(JSON.stringify(payload));
   const injected = `
-    <link rel="alternate" type="application/json" href="${alternateJson}" />
-    <link rel="alternate" type="application/json" href="${alternateAi}" />
-    <link rel="alternate" type="text/markdown" href="${alternateMd}" />
+    <link rel="alternate" type="application/json" href="${alternate.json}" />
+    <link rel="alternate" type="application/json" href="${alternate.ai}" />
+    <link rel="alternate" type="text/markdown" href="${alternate.markdown}" />
     <script type="application/json" id="teemtape-watchlist-data">${embeddedData}</script>
   `;
 
   html = html.replace("</head>", `${injected}\n</head>`);
 
-  return new Response(html, {
-    headers: { "content-type": "text/html; charset=utf-8" },
-  });
+  return new Response(html, { headers: HTML_HEADERS });
 }

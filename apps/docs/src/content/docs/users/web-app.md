@@ -23,8 +23,10 @@ There are several routes:
 - **`/w/:token.md`** — returns a Markdown export of the watchlist, including symbols and notes.
 - **`/ai/watchlist/:token`** — returns a compact AI-friendly JSON payload with watchlist data and note comments.
 
-The watchlist page itself embeds JSON and alternate links so agents and crawlers can
-extract the same data without needing browser-only rendering.
+The watchlist page embeds JSON (symbols, notes, and API write endpoints) plus
+alternate links so agents can read and post notes without browser-only rendering.
+See [Share URLs for agents](/agents/share-urls/) and
+[Web agent endpoints](/reference/web-agent-endpoints/).
 
 The first time you open `/`, teemtape generates a fresh watchlist and sends you
 to `/w/<token>`. Bookmark that URL (or use the share bar) to come back to the

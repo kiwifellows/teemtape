@@ -8,12 +8,14 @@ import {
   checkHandle,
   createHandle,
   createWatchlist,
+  getAgentWatchlist,
   getNotes,
   getWatchlist,
 } from "./repo.js";
 import { listSymbolsCatalog } from "./symbols.js";
 import { syncSymbols } from "./sync.js";
 import {
+  parseAgentSymbolLimit,
   parseHandle,
   parseNoteBody,
   parseOptionalHandle,
@@ -96,14 +98,18 @@ async function route(request: Request, env: Env): Promise<Response> {
     return json(await checkHandle(env, handle));
   }
 
-  // /api/w/:token[/symbols|/notes]
-  const match = path.match(/^\/api\/w\/([^/]+)(\/symbols|\/notes)?$/);
+  // /api/w/:token[/symbols|/notes|/agent]
+  const match = path.match(/^\/api\/w\/([^/]+)(\/symbols|\/notes|\/agent)?$/);
   if (match) {
     const token = parseToken(match[1]!);
     const sub = match[2];
 
     if (!sub && method === "GET") {
       return json(await getWatchlist(env, token));
+    }
+
+    if (sub === "/agent" && method === "GET") {
+      return json(await getAgentWatchlist(env, token, parseAgentSymbolLimit(url.searchParams)));
     }
 
     if (sub === "/symbols" && method === "POST") {

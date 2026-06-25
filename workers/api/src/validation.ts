@@ -100,6 +100,11 @@ export function parseSymbolsSort(raw: string | null): "ticker" | "title" {
   throw new HttpError(400, `invalid sort: ${raw}`);
 }
 
+/** Page size for GET /api/w/:token/agent (symbols with note threads). */
+export function parseAgentSymbolLimit(raw: URLSearchParams): number {
+  return parseIntParam(raw.get("limit"), MAX_SYMBOLS_PER_QUERY, 1, MAX_SYMBOLS_PER_QUERY);
+}
+
 /** Optional search/filter string for the symbols catalog. */
 export function parseOptionalSearch(raw: string | null, maxLen = MAX_SEARCH_LENGTH): string | undefined {
   if (raw === null) return undefined;

@@ -1,50 +1,53 @@
-const TOKEN_RE = /^[0-9a-f]{32}$/;
+import {
+  fetchAgentPayload,
+  MARKDOWN_HEADERS,
+  passthroughError,
+  resolveApiBase,
+  validateToken,
+} from "../utils/watchlist.js";
 
 export async function onRequest(context) {
   const { request, env, params } = context;
   const token = params?.token;
-  if (!token || !TOKEN_RE.test(token)) {
+  if (!validateToken(token)) {
     return new Response("not found", { status: 404 });
   }
 
-  const apiBase = env.API_BASE_URL || "https://api.teemtape.com";
-  const watchlistRes = await fetch(`${apiBase}/api/w/${token}`, {
-    headers: { accept: "application/json" },
-  });
-
-  if (!watchlistRes.ok) {
-    const text = await watchlistRes.text();
-    return new Response(text, {
-      status: watchlistRes.status,
-      headers: {
-        "content-type": watchlistRes.headers.get("content-type") || "text/plain; charset=utf-8",
-      },
-    });
+  const apiBase = resolveApiBase(env);
+  const agentResult = await fetchAgentPayload(apiBase, token);
+  if (!agentResult.ok) {
+    return passthroughError(agentResult);
   }
 
-  const watchlist = await watchlistRes.json();
-  const symbolNotes = await Promise.all(
-    watchlist.symbols.map(async (symbol) => {
-      const notesRes = await fetch(
-        `${apiBase}/api/w/${token}/notes?symbol=${encodeURIComponent(symbol)}`,
-        { headers: { accept: "application/json" } },
-      );
-      if (!notesRes.ok) {
-        return { symbol, notes: [] };
-      }
-      const payload = await notesRes.json();
-      return { symbol, notes: payload.notes ?? [] };
-    }),
-  );
+  const { watchlist, stocks, truncated, totalSymbols, symbolLimit } = agentResult.payload;
 
+  const webOrigin = new URL(request.url).origin;
   const lines = [
     `# Watchlist ${token}`,
     "",
-    `* URL: ${new URL(`/w/${token}`, request.url).toString()}`,
-    `* JSON: ${apiBase}/api/w/${token}`,
-    `* Agent JSON: ${new URL(`/ai/watchlist/${token}`, request.url).toString()}`,
+    `* Share URL: ${webOrigin}/w/${token}`,
+    `* Agent JSON: ${webOrigin}/ai/watchlist/${token}`,
+    `* API aggregate: ${apiBase}/api/w/${token}/agent`,
     "",
-    `## Symbols`,
+    "## Post a note (API)",
+    "",
+    "```http",
+    `POST ${apiBase}/api/w/${token}/notes`,
+    "Content-Type: application/json",
+    "",
+    JSON.stringify(
+      {
+        symbol: "NVDA",
+        body: "Your analysis here.",
+        source: "cli",
+        handle: "optional-agent-handle",
+      },
+      null,
+      2,
+    ),
+    "```",
+    "",
+    "## Symbols",
     "",
   ];
 
@@ -54,17 +57,24 @@ export async function onRequest(context) {
     lines.push(...watchlist.symbols.map((symbol) => `- ${symbol}`));
   }
 
-  lines.push("", "## Notes", "",");
+  if (truncated) {
+    lines.push(
+      "",
+      `_Showing notes for the first ${symbolLimit} of ${totalSymbols} symbols. Use agent JSON for the capped export._`,
+    );
+  }
 
-  if (symbolNotes.length === 0) {
+  lines.push("", "## Notes", "");
+
+  if (stocks.length === 0) {
     lines.push("No notes available.");
   } else {
-    for (const entry of symbolNotes) {
-      lines.push(`### ${entry.symbol}`);
-      if (entry.notes.length === 0) {
+    for (const entry of stocks) {
+      lines.push(`### ${entry.ticker}`);
+      if (entry.comments.length === 0) {
         lines.push("- _no notes yet_");
       } else {
-        for (const note of entry.notes) {
+        for (const note of entry.comments) {
           const body = note.body.replace(/\n/g, " ").trim();
           lines.push(`- ${body} — ${note.author} (${note.source}, ${note.createdAt})`);
         }
@@ -73,7 +83,5 @@ export async function onRequest(context) {
     }
   }
 
-  return new Response(lines.join("\n"), {
-    headers: { "content-type": "text/markdown; charset=utf-8" },
-  });
+  return new Response(lines.join("\n"), { headers: MARKDOWN_HEADERS });
 }

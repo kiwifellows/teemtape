@@ -1,0 +1,3 @@
+# Cloudflare Pages local dev (wrangler pages dev)
+# Copy to .dev.vars (gitignored) when running npm run web:pages:dev
+API_BASE_URL=http://127.0.0.1:8787

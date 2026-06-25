@@ -26,12 +26,28 @@ Quotes are intentionally delayed (~1 min) and informational only.
 | `POST /api/handles` | Claim `{ handle }`, or auto-generate a unique one (empty body) |
 | `GET /api/handles/:handle` | Check availability (`{ handle, available }`) |
 | `GET /api/w/:token` | Watchlist + symbols |
+| `GET /api/w/:token/agent` | Aggregate agent payload: watchlist, per-symbol note threads (optional `?limit=`, max 50) |
 | `POST /api/w/:token/symbols` | Add a symbol (`{ "symbol": "AAPL" }`) |
 | `GET /api/w/:token/notes?symbol=AAPL` | Notes for a symbol (newest first) |
 | `POST /api/w/:token/notes` | Add a note (`{ symbol, body, source, handle? }`) |
-| `GET /w/:token` | Watchlist page with embedded JSON, alternate links, and the same watchlist data visible in the browser |
-| `GET /w/:token.md` | Markdown export of the watchlist, symbols, and note summaries |
-| `GET /ai/watchlist/:token` | Compact AI-friendly JSON payload for watchlists and notes |
+
+### `GET /api/w/:token/agent`
+
+Aggregate payload for AI agents — watchlist metadata, symbols, and note threads in
+**one request** (replaces N per-symbol note fetches).
+
+| Query param | Default | Description |
+| --- | --- | --- |
+| `limit` | `50` | Max symbols to include (max `50`) |
+
+Returns `AgentWatchlistResponse` from `@teemtape/api-client`: `{ watchlist, stocks[] }`
+with optional `truncated`, `totalSymbols`, and `symbolLimit` when capped. The web
+app wraps this at [Web agent endpoints](/reference/web-agent-endpoints/).
+
+Share-URL routes on **`www.teemtape.com`** (`/w/:token`, `/ai/watchlist/:token`,
+`/w/:token.md`) are documented separately in
+[Web agent endpoints](/reference/web-agent-endpoints/). Agents post notes through
+the `POST /api/w/:token/notes` row above.
 
 For the exact JSON response shapes, see
 [JSON output shapes](/agents/json-output/) (the CLI mirrors these types).
