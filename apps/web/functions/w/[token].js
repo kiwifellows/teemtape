@@ -3,7 +3,9 @@ import {
   apiDiscovery,
   fetchAgentPayload,
   HTML_HEADERS,
+  MARKDOWN_HEADERS,
   passthroughError,
+  renderWatchlistMarkdown,
   resolveApiBase,
   resolveWatchlistToken,
   safeJson,
@@ -12,9 +14,25 @@ import {
 
 export async function onRequest(context) {
   const { request, env, params } = context;
+  const pathname = new URL(request.url).pathname;
   const token = resolveWatchlistToken(params, request.url);
   if (!token) {
     return new Response("not found", { status: 404 });
+  }
+
+  // Cloudflare Pages routes /w/:token.md to [token].js, not [token].md.js — serve markdown here.
+  if (/^\/w\/[0-9a-f]{32}\.md$/i.test(pathname)) {
+    const apiBase = resolveApiBase(env);
+    const agentResult = await fetchAgentPayload(apiBase, token);
+    if (!agentResult.ok) {
+      return passthroughError(agentResult);
+    }
+    const body = renderWatchlistMarkdown(
+      { token, ...agentResult.payload },
+      request.url,
+      apiBase,
+    );
+    return new Response(body, { headers: MARKDOWN_HEADERS });
   }
 
   if (wantsJsonResponse(request)) {
