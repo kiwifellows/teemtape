@@ -5,8 +5,9 @@ import {
   renderWatchlistMarkdown,
   resolveApiBase,
   resolveWatchlistToken,
-} from "../utils/watchlist.js";
+} from "../../utils/watchlist.js";
 
+/** Fallback markdown route: /w/:token/markdown (avoids Pages `[token].md.js` param quirks). */
 export async function onRequest(context) {
   const { request, env, params } = context;
   const token = resolveWatchlistToken(params, request.url);

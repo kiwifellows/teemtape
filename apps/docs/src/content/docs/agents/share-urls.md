@@ -20,7 +20,7 @@ After receiving a share URL, prefer these in order:
 3. **Parse `/w/{token}` HTML** — look for
    `<script type="application/json" id="teemtape-watchlist-data">`. Same payload
    as the web agent JSON endpoint (embedded at page load).
-4. **`GET /w/{token}.md`** — Markdown fallback when JSON parsing is awkward.
+4. **`GET /w/{token}.md`** or **`GET /w/{token}/markdown`** — Markdown fallback when JSON parsing is awkward.
 
 Extract `{token}` from the path: `/w/{token}` → 32 lowercase hex characters.
 
