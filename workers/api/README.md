@@ -17,6 +17,7 @@ stores **anonymous notes + watchlists** in **Cloudflare D1**, caches quotes in
 | `POST /api/handles` | Claim `{ handle }`, or auto-generate a unique one (empty body) |
 | `GET /api/handles/:handle` | Check availability (`{ handle, available }`) |
 | `GET /api/w/:token` | Watchlist + symbols |
+| `GET /api/w/:token/agent` | Aggregate agent payload: watchlist, per-symbol note threads (optional `?limit=`, max 50) |
 | `POST /api/w/:token/symbols` | Add a symbol (`{ "symbol": "AAPL" }`) |
 | `GET /api/w/:token/notes?symbol=AAPL` | Notes for a symbol (newest first) |
 | `POST /api/w/:token/notes` | Add a note (`{ symbol, body, source, handle? }`) |

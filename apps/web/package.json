@@ -11,6 +11,7 @@
     "prebuild": "npm run build -w @teemtape/api-client --prefix ../..",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "pages:dev": "wrangler pages dev dist --port 8788",
     "deploy": "wrangler pages deploy dist --project-name teemtape-web --branch main"
   },
   "dependencies": {

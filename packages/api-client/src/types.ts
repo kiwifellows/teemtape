@@ -86,6 +86,22 @@ export interface Watchlist {
   createdAt: string;
 }
 
+/** One symbol row in the agent aggregate watchlist payload. */
+export interface AgentWatchlistStock {
+  ticker: string;
+  comments: Note[];
+}
+
+/** Aggregate watchlist + note threads for AI agents (single request). */
+export interface AgentWatchlistResponse {
+  watchlist: Watchlist;
+  stocks: AgentWatchlistStock[];
+  /** Present when the watchlist has more symbols than the applied limit. */
+  truncated?: boolean;
+  totalSymbols?: number;
+  symbolLimit?: number;
+}
+
 export interface CreateNoteInput {
   symbol: string;
   body: string;

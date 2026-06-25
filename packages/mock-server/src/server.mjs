@@ -112,7 +112,7 @@ export function createMockServer() {
       return send(res, 200, { handle, available: !handles.has(handle) });
     }
 
-    const wMatch = path.match(/^\/api\/w\/([^/]+)(\/symbols|\/notes)?$/);
+    const wMatch = path.match(/^\/api\/w\/([^/]+)(\/symbols|\/notes|\/agent)?$/);
     if (wMatch) {
       const token = wMatch[1];
       const sub = wMatch[2];
@@ -120,6 +120,28 @@ export function createMockServer() {
       if (!watchlist) return send(res, 404, { error: "unknown watchlist token" });
 
       if (!sub && method === "GET") return send(res, 200, watchlist);
+
+      if (sub === "/agent" && method === "GET") {
+        const limit = Math.min(
+          50,
+          Math.max(1, Number(url.searchParams.get("limit") ?? "50") || 50),
+        );
+        const symbols = watchlist.symbols.slice(0, limit);
+        const stocks = symbols.map((symbol) => {
+          const thread = notes
+            .filter((n) => n.token === token && n.symbol === symbol)
+            .map(({ token: _t, ...rest }) => rest)
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+          return { ticker: symbol, comments: thread };
+        });
+        const payload = { watchlist, stocks };
+        if (watchlist.symbols.length > limit) {
+          payload.truncated = true;
+          payload.totalSymbols = watchlist.symbols.length;
+          payload.symbolLimit = limit;
+        }
+        return send(res, 200, payload);
+      }
 
       if (sub === "/symbols" && method === "POST") {
         const body = await readJson(req);

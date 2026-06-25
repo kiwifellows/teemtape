@@ -1,4 +1,12 @@
-import type { CreateNoteInput, Handle, HandleAvailability, Note, Watchlist } from "@teemtape/api-client";
+import type {
+  AgentWatchlistResponse,
+  AgentWatchlistStock,
+  CreateNoteInput,
+  Handle,
+  HandleAvailability,
+  Note,
+  Watchlist,
+} from "@teemtape/api-client";
 import type { Env } from "./env.js";
 import { HttpError } from "./http.js";
 import { authorFor, newNoteId, newWatchlistToken, suggestHandle } from "./ids.js";
@@ -47,6 +55,56 @@ export async function addSymbol(env: Env, token: string, symbol: string): Promis
     .bind(token, symbol, new Date().toISOString())
     .run();
   return getWatchlist(env, token);
+}
+
+/** All notes on a watchlist for the given symbols, newest first within each symbol. */
+async function listNotesForSymbols(env: Env, token: string, symbols: string[]): Promise<Note[]> {
+  if (symbols.length === 0) return [];
+  const placeholders = symbols.map((_, i) => `?${i + 2}`).join(", ");
+  const res = await env.DB.prepare(
+    `SELECT id, symbol, author, source, body, created_at AS createdAt
+       FROM note
+      WHERE token = ?1 AND symbol IN (${placeholders})
+      ORDER BY created_at DESC`,
+  )
+    .bind(token, ...symbols)
+    .all<Note>();
+  return res.results;
+}
+
+/**
+ * Aggregate watchlist metadata, symbols, and note threads in one response.
+ * Used by AI agents and the web Pages Functions (avoids N+1 note fetches).
+ */
+export async function getAgentWatchlist(
+  env: Env,
+  token: string,
+  symbolLimit: number,
+): Promise<AgentWatchlistResponse> {
+  const watchlist = await getWatchlist(env, token);
+  const symbols = watchlist.symbols.slice(0, symbolLimit);
+  const truncated = watchlist.symbols.length > symbolLimit;
+  const notes = await listNotesForSymbols(env, token, symbols);
+
+  const commentsBySymbol = new Map<string, Note[]>();
+  for (const note of notes) {
+    const thread = commentsBySymbol.get(note.symbol) ?? [];
+    thread.push(note);
+    commentsBySymbol.set(note.symbol, thread);
+  }
+
+  const stocks: AgentWatchlistStock[] = symbols.map((ticker) => ({
+    ticker,
+    comments: commentsBySymbol.get(ticker) ?? [],
+  }));
+
+  const payload: AgentWatchlistResponse = { watchlist, stocks };
+  if (truncated) {
+    payload.truncated = true;
+    payload.totalSymbols = watchlist.symbols.length;
+    payload.symbolLimit = symbolLimit;
+  }
+  return payload;
 }
 
 /** Notes for a (watchlist, symbol), newest first. */

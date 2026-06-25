@@ -123,6 +123,28 @@ describe("teemtape API", () => {
     expect(res.status).toBe(404);
   });
 
+  it("returns an agent aggregate payload with stocks and comments", async () => {
+    const created = await post("/api/watchlists");
+    const { token } = await body<{ token: string }>(created);
+
+    await post(`/api/w/${token}/symbols`, { symbol: "NVDA" });
+    await post(`/api/w/${token}/symbols`, { symbol: "AAPL" });
+    await post(`/api/w/${token}/notes`, { symbol: "NVDA", body: "nvda note", source: "cli" });
+    await post(`/api/w/${token}/notes`, { symbol: "AAPL", body: "aapl note", source: "web" });
+
+    const res = await SELF.fetch(`${BASE}/api/w/${token}/agent`);
+    expect(res.status).toBe(200);
+
+    const data = await body<{
+      watchlist: { symbols: string[] };
+      stocks: Array<{ ticker: string; comments: Array<{ body: string }> }>;
+    }>(res);
+    expect(data.watchlist.symbols).toEqual(["NVDA", "AAPL"]);
+    expect(data.stocks).toHaveLength(2);
+    expect(data.stocks.find((s) => s.ticker === "NVDA")?.comments[0]?.body).toBe("nvda note");
+    expect(data.stocks.find((s) => s.ticker === "AAPL")?.comments[0]?.body).toBe("aapl note");
+  });
+
   it("400s an invalid symbol", async () => {
     const created = await post("/api/watchlists");
     const { token } = await body<{ token: string }>(created);

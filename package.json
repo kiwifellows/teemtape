@@ -19,6 +19,7 @@
     "api:dev": "npm run dev --workspace @teemtape/api",
     "web:dev": "npm run dev --workspace @teemtape/web",
     "web:build": "npm run build --workspace @teemtape/web",
+    "web:pages:dev": "npm run pages:dev --workspace @teemtape/web",
     "web:deploy": "npm run deploy --workspace @teemtape/web"
   },
   "engines": {

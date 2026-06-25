@@ -1,4 +1,5 @@
 import type {
+  AgentWatchlistResponse,
   CreateNoteInput,
   Handle,
   HandleAvailability,
@@ -102,6 +103,11 @@ export class TeemtapeClient {
   /** Fetch a watchlist (symbols + metadata) by token. */
   async getWatchlist(token = this.requireToken()): Promise<Watchlist> {
     return this.request<Watchlist>(`/api/w/${token}`);
+  }
+
+  /** Aggregate watchlist + note threads for AI agents (single request). */
+  async getAgentWatchlist(token = this.requireToken()): Promise<AgentWatchlistResponse> {
+    return this.request<AgentWatchlistResponse>(`/api/w/${token}/agent`);
   }
 
   /** Add a symbol to a watchlist. */
