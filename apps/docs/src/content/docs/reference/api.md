@@ -29,6 +29,9 @@ Quotes are intentionally delayed (~1 min) and informational only.
 | `POST /api/w/:token/symbols` | Add a symbol (`{ "symbol": "AAPL" }`) |
 | `GET /api/w/:token/notes?symbol=AAPL` | Notes for a symbol (newest first) |
 | `POST /api/w/:token/notes` | Add a note (`{ symbol, body, source, handle? }`) |
+| `GET /w/:token` | Watchlist page with embedded JSON, alternate links, and the same watchlist data visible in the browser |
+| `GET /w/:token.md` | Markdown export of the watchlist, symbols, and note summaries |
+| `GET /ai/watchlist/:token` | Compact AI-friendly JSON payload for watchlists and notes |
 
 For the exact JSON response shapes, see
 [JSON output shapes](/agents/json-output/) (the CLI mirrors these types).
