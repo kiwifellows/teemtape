@@ -11,7 +11,7 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "deploy": "wrangler pages deploy dist --project-name teemtape-docs --branch main",
+    "deploy": "wrangler deploy",
     "astro": "astro"
   },
   "dependencies": {
@@ -20,6 +20,7 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
-    "@astrojs/cloudflare": "^13.7.0"
+    "@astrojs/cloudflare": "^13.7.0",
+    "wrangler": "^4.101.0"
   }
 }
