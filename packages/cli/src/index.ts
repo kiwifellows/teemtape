@@ -6,6 +6,7 @@ import { configCommand } from "./commands/config.js";
 import { handleCommand } from "./commands/handle.js";
 import { initCommand } from "./commands/init.js";
 import { listCommand } from "./commands/list.js";
+import { loginCommand, logoutCommand } from "./commands/login.js";
 import { noteCommand } from "./commands/note.js";
 import { notesCommand } from "./commands/notes.js";
 import { searchCommand } from "./commands/search.js";
@@ -26,6 +27,8 @@ program
   .option("--token <token>", "watchlist token (env: TEEMTAPE_TOKEN)")
   .option("--handle <name>", "anonymous handle for posted notes (env: TEEMTAPE_HANDLE)")
   .option("--web-url <url>", "web app base URL used for share links (env: TEEMTAPE_WEB_URL)")
+  .option("--access-token <pat>", "teemtape Pro access token (env: TEEMTAPE_ACCESS_TOKEN)")
+  .option("--dashboard-url <url>", "teemtape Pro app URL (env: TEEMTAPE_DASHBOARD_URL)")
   .option("--json", "output machine-readable JSON (handy for agents)")
   .showHelpAfterError();
 
@@ -36,6 +39,8 @@ function globalsOf(command: Command): GlobalFlags {
     token: o.token as string | undefined,
     handle: o.handle as string | undefined,
     webUrl: o.webUrl as string | undefined,
+    accessToken: o.accessToken as string | undefined,
+    dashboardUrl: o.dashboardUrl as string | undefined,
     json: Boolean(o.json),
   };
 }
@@ -55,6 +60,15 @@ function fail(message: string): void {
 }
 
 function handleError(err: unknown): void {
+  if (err instanceof ApiError && err.accessDenied) {
+    const where = err.signInUrl ? ` (sign in at ${err.signInUrl})` : "";
+    const hint =
+      err.reason === "sign_in_required"
+        ? `This watchlist is private. Run \`teemtape login\`${where}.`
+        : `Your access token does not allow that on this watchlist${where}.`;
+    fail(`${err.message} (HTTP ${err.status})\n  ${hint}`);
+    return;
+  }
   if (err instanceof ApiError) {
     fail(`${err.message} (HTTP ${err.status})`);
     return;
@@ -133,6 +147,19 @@ program
   );
 
 program
+  .command("login")
+  .argument("[access-token]", "access token created in the teemtape Pro app (prompts if omitted)")
+  .description("sign in with a teemtape Pro access token (unlocks private watchlists)")
+  .action(async (accessToken: string | undefined, _opts, command: Command) =>
+    run(command, (ctx) => loginCommand(ctx, accessToken)),
+  );
+
+program
+  .command("logout")
+  .description("forget the saved teemtape Pro access token")
+  .action(async (_opts, command: Command) => run(command, (ctx) => logoutCommand(ctx)));
+
+program
   .command("config")
   .description("show the resolved configuration (token masked)")
   .action(async (_opts, command: Command) => run(command, (ctx) => configCommand(ctx)));
@@ -160,6 +187,7 @@ Examples:
   $ teemtape handle               # show your anonymous handle
   $ teemtape handle trader_jane   # claim a specific handle
   $ teemtape share
+  $ teemtape login [pat]          # teemtape Pro: save an access token for private lists
   $ teemtape list --json        # machine-readable output for agents
 
 Config precedence: CLI flags > env vars > ~/.config/teemtape/config.json > defaults

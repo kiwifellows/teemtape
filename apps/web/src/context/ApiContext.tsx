@@ -1,11 +1,20 @@
 import { TeemtapeClient } from "@teemtape/api-client";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { getApiUrl } from "../config";
+import { getApiUrl, getDashboardUrl } from "../config";
 
 const ApiContext = createContext<TeemtapeClient | null>(null);
 
+/** Send the `.teemtape.com` session cookie only when a Pro app is configured. */
+function clientOptions(token?: string) {
+  return {
+    baseUrl: getApiUrl(),
+    token,
+    credentials: getDashboardUrl() ? ("include" as const) : undefined,
+  };
+}
+
 export function ApiProvider({ children }: { children: ReactNode }) {
-  const client = useMemo(() => new TeemtapeClient({ baseUrl: getApiUrl() }), []);
+  const client = useMemo(() => new TeemtapeClient(clientOptions()), []);
   return <ApiContext.Provider value={client}>{children}</ApiContext.Provider>;
 }
 
@@ -18,5 +27,5 @@ export function useApi(): TeemtapeClient {
 }
 
 export function useApiForToken(token: string): TeemtapeClient {
-  return useMemo(() => new TeemtapeClient({ baseUrl: getApiUrl(), token }), [token]);
+  return useMemo(() => new TeemtapeClient(clientOptions(token)), [token]);
 }

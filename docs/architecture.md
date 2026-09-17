@@ -258,10 +258,24 @@ display-only — not a login mechanism.
 | SQL injection | ❌ Blocked by parameterised queries | ❌ 401 + blocked |
 | GET /health | ✅ Always works | ✅ Always works |
 
+## Authorisation hook (optional, hosted service only)
+
+The API stays anonymous. The hosted service at teemtape.com adds accounts and
+per-watchlist permissions **without touching this schema**, via one optional
+Cloudflare service binding, `AUTHZ`, implemented by a private companion
+service. For each watchlist request the Worker sends
+`{ action, token, credential? }` and enforces the `allow` it gets back;
+denials are `401 sign_in_required` / `403 forbidden` with a `signInUrl`.
+No binding → every list is `public-edit`, exactly as described above.
+
+Details, caching, and failure behaviour: [`authz-contract.md`](authz-contract.md).
+Code: [`workers/api/src/authz.ts`](../workers/api/src/authz.ts).
+
 ## API surface (draft, shared by web + mobile + CLI)
 
 ```
 GET  /api/quotes?symbols=AAPL,MSFT      -> delayed quote rows
+GET  /api/whoami                        -> { user: { handle } | null } (via AUTHZ hook)
 POST /api/handles                       -> claim { handle } or auto-generate a unique one
 GET  /api/handles/:handle               -> { handle, available }
 GET  /api/w/:token                      -> watchlist + symbols

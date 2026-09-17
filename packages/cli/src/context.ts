@@ -14,6 +14,10 @@ export interface Context {
 /** Build the per-invocation context (resolved config + a ready API client). */
 export function createContext(flags: GlobalFlags): Context {
   const config = resolveConfig(flags);
-  const client = new TeemtapeClient({ baseUrl: config.apiUrl, token: config.token });
+  const client = new TeemtapeClient({
+    baseUrl: config.apiUrl,
+    token: config.token,
+    accessToken: config.accessToken,
+  });
   return { config, json: Boolean(flags.json), client };
 }

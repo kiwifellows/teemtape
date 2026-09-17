@@ -16,6 +16,12 @@ config file > defaults**.
 | Token | `--token` | `TEEMTAPE_TOKEN` | (none) |
 | Handle | `--handle` | `TEEMTAPE_HANDLE` | (auto-generated on first use) |
 | Web URL | `--web-url` | `TEEMTAPE_WEB_URL` | `https://www.teemtape.com` |
+| Access token | `--access-token` | `TEEMTAPE_ACCESS_TOKEN` | (none) |
+| App URL | `--dashboard-url` | `TEEMTAPE_DASHBOARD_URL` | `https://app.teemtape.com` |
+
+The **access token** is only relevant on the hosted service with teemtape Pro:
+it unlocks private watchlists and role-based access for the CLI and agents.
+Save one with `teemtape login`. Self-hosted APIs ignore it.
 
 ### Config file
 
@@ -35,6 +41,7 @@ Build-time variables (Vite):
 | --- | --- | --- |
 | `VITE_API_URL` | `https://api.teemtape.com` | Worker API base URL |
 | `VITE_WEB_URL` | `window.location.origin` | Share link host |
+| `VITE_DASHBOARD_URL` | (unset) | teemtape Pro app URL. When set, API calls carry the `.teemtape.com` session cookie and the top bar shows sign-in state. Leave unset when self-hosting. |
 
 In development, `apps/web/.env.development` defaults `VITE_API_URL` to
 `http://127.0.0.1:8787`. Production values live in `apps/web/.env.production`.

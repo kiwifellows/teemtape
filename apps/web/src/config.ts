@@ -14,6 +14,16 @@ export function getWebUrl(): string {
   return import.meta.env.VITE_WEB_URL || DEFAULTS.webUrl;
 }
 
+/**
+ * teemtape Pro app URL (sign-in, saved lists, access tokens). Undefined unless
+ * VITE_DASHBOARD_URL is set, in which case API calls also carry the
+ * `.teemtape.com` session cookie and the UI shows sign-in state.
+ */
+export function getDashboardUrl(): string | undefined {
+  const url = import.meta.env.VITE_DASHBOARD_URL;
+  return url ? url.replace(/\/$/, "") : undefined;
+}
+
 export function shareUrlForToken(token: string): string {
   return `${getWebUrl().replace(/\/$/, "")}/w/${token}`;
 }

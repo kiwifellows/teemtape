@@ -39,6 +39,7 @@ The dev server defaults to `VITE_API_URL=http://127.0.0.1:8787` (see `.env.devel
 | --- | --- | --- |
 | `VITE_API_URL` | `https://api.teemtape.com` | Worker API base URL (browser / React app) |
 | `VITE_WEB_URL` | `window.location.origin` | Share link host |
+| `VITE_DASHBOARD_URL` | (unset) | teemtape Pro app URL; enables cookie credentials + sign-in state. Leave unset when self-hosting. |
 | `API_BASE_URL` | `https://api.teemtape.com` | Worker base URL for Pages Functions (server-side fetch) |
 
 Set `API_BASE_URL` in the Cloudflare Pages dashboard (or `.dev.vars` locally) when

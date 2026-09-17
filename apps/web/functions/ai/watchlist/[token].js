@@ -15,7 +15,7 @@ export async function onRequest(context) {
   }
 
   const apiBase = resolveApiBase(env);
-  const agentResult = await fetchAgentPayload(apiBase, token);
+  const agentResult = await fetchAgentPayload(apiBase, token, { request });
   if (!agentResult.ok) {
     return passthroughError(agentResult);
   }

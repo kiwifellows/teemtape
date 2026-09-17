@@ -1,5 +1,6 @@
+import { authorize, identify, notifyCreated } from "./authz.js";
 import type { Env } from "./env.js";
-import { error, HttpError, json, noContent } from "./http.js";
+import { applyCors, error, HttpError, json, noContent } from "./http.js";
 import { getQuotes } from "./quotes.js";
 import { checkApiKey, checkRateLimit } from "./rate-limit.js";
 import {
@@ -39,7 +40,7 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
@@ -81,7 +82,15 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   // POST /api/watchlists
   if (path === "/api/watchlists" && method === "POST") {
-    return json(await createWatchlist(env), 201);
+    const watchlist = await createWatchlist(env);
+    // Let the (optional) authorisation service record ownership for signed-in callers.
+    ctx.waitUntil(notifyCreated(request, env, watchlist.token));
+    return json(watchlist, 201);
+  }
+
+  // GET /api/whoami — who is the caller, according to the (optional) authorisation service.
+  if (path === "/api/whoami" && method === "GET") {
+    return json({ user: await identify(request, env) });
   }
 
   // POST /api/handles — claim a handle (body.handle) or generate a unique one.
@@ -105,25 +114,30 @@ async function route(request: Request, env: Env): Promise<Response> {
     const sub = match[2];
 
     if (!sub && method === "GET") {
+      await authorize(request, env, token, "view");
       return json(await getWatchlist(env, token));
     }
 
     if (sub === "/agent" && method === "GET") {
+      await authorize(request, env, token, "view");
       return json(await getAgentWatchlist(env, token, parseAgentSymbolLimit(url.searchParams)));
     }
 
     if (sub === "/symbols" && method === "POST") {
+      await authorize(request, env, token, "add_symbol");
       const body = await readJson(request);
       const symbol = parseSymbol(body.symbol);
       return json(await addSymbol(env, token, symbol));
     }
 
     if (sub === "/notes" && method === "GET") {
+      await authorize(request, env, token, "view");
       const symbol = parseSymbol(url.searchParams.get("symbol"));
       return json({ symbol, notes: await getNotes(env, token, symbol) });
     }
 
     if (sub === "/notes" && method === "POST") {
+      await authorize(request, env, token, "post_note");
       const body = await readJson(request);
       const symbol = parseSymbol(body.symbol);
       const note = await addNote(env, token, {
@@ -140,14 +154,19 @@ async function route(request: Request, env: Env): Promise<Response> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    let response: Response;
     try {
-      return await route(request, env);
+      response = await route(request, env, ctx);
     } catch (err) {
-      if (err instanceof HttpError) return error(err.message, err.status, err.extraHeaders);
-      console.error("unhandled error", err);
-      return error("internal error", 500);
+      if (err instanceof HttpError) {
+        response = error(err.message, err.status, err.extraHeaders, err.extraBody);
+      } else {
+        console.error("unhandled error", err);
+        response = error("internal error", 500);
+      }
     }
+    return applyCors(response, request, env.CORS_ORIGINS);
   },
 
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {

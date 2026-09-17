@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cloudflarePool, cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
+import { authzStub } from "./test/authz-stub.js";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,7 +17,11 @@ export default defineConfig(async () => {
       bindings: {
         TEST_MIGRATIONS: migrations,
         QUOTES_PROVIDER: "sample",
+        DASHBOARD_URL: "https://app.test",
+        CORS_ORIGINS: "https://web.test",
       },
+      // Stand-in for the private authorisation service (see test/authz-stub.ts).
+      serviceBindings: { AUTHZ: authzStub },
     },
   };
 

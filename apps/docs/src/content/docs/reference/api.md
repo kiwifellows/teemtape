@@ -25,6 +25,7 @@ Quotes are intentionally delayed (~1 min) and informational only.
 | `POST /api/watchlists` | Create an anonymous watchlist (returns an MD5-shaped token) |
 | `POST /api/handles` | Claim `{ handle }`, or auto-generate a unique one (empty body) |
 | `GET /api/handles/:handle` | Check availability (`{ handle, available }`) |
+| `GET /api/whoami` | The signed-in caller (`{ user: { handle } }`, or `{ user: null }`) when the [authorisation hook](#authorisation-hook-teemtape-pro) is configured |
 | `GET /api/w/:token` | Watchlist + symbols |
 | `GET /api/w/:token/agent` | Aggregate agent payload: watchlist, per-symbol note threads (optional `?limit=`, max 50) |
 | `POST /api/w/:token/symbols` | Add a symbol (`{ "symbol": "AAPL" }`) |
@@ -64,6 +65,31 @@ A paginated list of SEC company tickers (100 per page by default).
 | `q` | — | Search ticker **or** company name |
 | `symbol` | — | Filter by ticker substring |
 | `name` | — | Filter by company name substring |
+
+## Authorisation hook (teemtape Pro)
+
+The API is anonymous by default and stays that way when self-hosted. The
+hosted service adds accounts and per-watchlist permissions through an
+**optional service binding** named `AUTHZ`: for each watchlist request the
+Worker asks that service *"may this caller do this action on this list?"*
+and enforces the answer. Denials come back as:
+
+| Status | `reason` | Meaning |
+| --- | --- | --- |
+| `401` | `sign_in_required` | The list is private and the caller has no credential |
+| `403` | `forbidden` | The caller is known but has no (sufficient) role on the list |
+
+```json
+{ "error": "this watchlist is private — sign in to continue",
+  "reason": "sign_in_required",
+  "signInUrl": "https://app.teemtape.com" }
+```
+
+Credentials are an `Authorization: Bearer <access token>` header (CLI, agents)
+or the session cookie set by the app on `.teemtape.com` (browser). With no
+`AUTHZ` binding configured, every list is `public-edit` and none of this
+applies. The full contract is in
+[`docs/authz-contract.md`](https://github.com/kiwifellows/teemtape/blob/main/docs/authz-contract.md).
 
 ## Anonymous handles
 

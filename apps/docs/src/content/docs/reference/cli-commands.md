@@ -16,6 +16,8 @@ These apply to every command:
 --token <token>    Watchlist token (env: TEEMTAPE_TOKEN)
 --handle <name>    Anonymous handle for posted notes (env: TEEMTAPE_HANDLE)
 --web-url <url>    Web app URL for share links (env: TEEMTAPE_WEB_URL)
+--access-token <pat>  teemtape Pro access token (env: TEEMTAPE_ACCESS_TOKEN)
+--dashboard-url <url> teemtape Pro app URL (env: TEEMTAPE_DASHBOARD_URL)
 --json             Machine-readable JSON output (use this for agent workflows)
 ```
 
@@ -125,3 +127,35 @@ teemtape config [--json]
 - `--json` writes pretty-printed JSON to **stdout**; see
   [JSON output shapes](/agents/json-output/).
 - Errors are written to **stderr** as `error: …` with a **non-zero** exit code.
+
+## login
+
+Save a teemtape Pro personal access token so the CLI (and any agent driving
+it) can open private watchlists and act with the role the owner granted.
+
+```bash
+teemtape login [ACCESS_TOKEN] [--json]
+```
+
+Create the token in the teemtape Pro app first. If you omit the argument the
+CLI prompts for it. The token is verified against `GET /api/whoami` before it
+is saved to the config file (`0600`); `teemtape config` shows it masked.
+
+```json
+{ "handle": "trader_jane", "accessToken": "****", "configPath": "/home/user/.config/teemtape/config.json" }
+```
+
+Without a valid token, private watchlists answer:
+
+```
+error: this watchlist is private — sign in to continue (HTTP 401)
+  This watchlist is private. Run `teemtape login` (sign in at https://app.teemtape.com).
+```
+
+## logout
+
+Forget the saved access token.
+
+```bash
+teemtape logout [--json]
+```

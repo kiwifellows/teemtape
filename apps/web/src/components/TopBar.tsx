@@ -1,4 +1,5 @@
 import { useTheme } from "../hooks/useTheme";
+import { useWhoami } from "../hooks/useWhoami";
 
 export function TopBar({
   onAddSymbol,
@@ -8,6 +9,7 @@ export function TopBar({
   addingSymbol?: boolean;
 }) {
   const { toggleTheme, themeLabel } = useTheme();
+  const { user, dashboardUrl } = useWhoami();
 
   return (
     <header className="topbar">
@@ -43,6 +45,16 @@ export function TopBar({
           </svg>
           <span className="sr-only">GitHub</span>
         </a>
+        {dashboardUrl && user === null && (
+          <a className="btn ghost small" href={dashboardUrl}>
+            Sign in
+          </a>
+        )}
+        {dashboardUrl && user && (
+          <a className="btn ghost small" href={dashboardUrl} title="Open teemtape Pro">
+            <span className="handle-chip">{user.handle}</span> · Open app
+          </a>
+        )}
         <button
           type="button"
           className="btn primary small"

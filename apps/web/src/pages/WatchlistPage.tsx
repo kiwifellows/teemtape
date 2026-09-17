@@ -1,8 +1,9 @@
-import type { Quote, SymbolEntry } from "@teemtape/api-client";
+import { ApiError, type Quote, type SymbolEntry } from "@teemtape/api-client";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { NotePopup } from "../components/NotePopup";
+import { PrivateWatchlist } from "../components/PrivateWatchlist";
 import { ShareBar } from "../components/ShareBar";
 import { SymbolSearch } from "../components/SymbolSearch";
 import { TopBar } from "../components/TopBar";
@@ -35,6 +36,7 @@ export function WatchlistPage({ token }: { token: string }) {
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [denied, setDenied] = useState<ApiError | null>(null);
   const [noteSymbol, setNoteSymbol] = useState<string | null>(null);
   const [addingSymbol, setAddingSymbol] = useState(false);
   const [creatingLink, setCreatingLink] = useState(false);
@@ -42,6 +44,7 @@ export function WatchlistPage({ token }: { token: string }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setDenied(null);
     try {
       const watchlist = await client.getWatchlist();
       setSymbols(watchlist.symbols);
@@ -56,6 +59,10 @@ export function WatchlistPage({ token }: { token: string }) {
       setQuotes(quotesRes.quotes);
       setNoteCounts(await fetchNoteCounts(client, watchlist.symbols));
     } catch (err) {
+      if (err instanceof ApiError && err.accessDenied) {
+        setDenied(err);
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to load watchlist");
     } finally {
       setLoading(false);
@@ -112,17 +119,23 @@ export function WatchlistPage({ token }: { token: string }) {
     <div className="app">
       <TopBar onAddSymbol={focusSearch} addingSymbol={addingSymbol} />
 
-      <ShareBar token={token} onNewLink={() => void createNewLink()} creatingLink={creatingLink} />
+      {denied ? (
+        <PrivateWatchlist error={denied} />
+      ) : (
+        <ShareBar token={token} onNewLink={() => void createNewLink()} creatingLink={creatingLink} />
+      )}
 
       {loading && <div className="status-banner loading">Loading watchlist…</div>}
       {!loading && error && <div className="status-banner error">{error}</div>}
 
-      <div className="toolbar">
-        <h2 style={{ fontSize: 16 }}>Watchlist</h2>
-        <SymbolSearch onSelect={(entry) => void addSymbol(entry)} />
-      </div>
+      {!denied && (
+        <div className="toolbar">
+          <h2 style={{ fontSize: 16 }}>Watchlist</h2>
+          <SymbolSearch onSelect={(entry) => void addSymbol(entry)} />
+        </div>
+      )}
 
-      {!loading && !error && (
+      {!loading && !error && !denied && (
         <WatchlistTable
           quotes={quotes}
           noteCounts={noteCounts}

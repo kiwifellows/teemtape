@@ -38,6 +38,13 @@ QUOTE_CACHE_TTL_SECONDS = "300"
 RATE_LIMIT_RPM = "60"
 WEB_URL = "http://localhost:5173"   # used to build share links
 SEC_USER_AGENT = "teemtape-api symbols-sync help@teem.cloud"
+# Optional authorisation hook (see docs/authz-contract.md). DASHBOARD_URL is
+# returned in 401/403 bodies so clients can tell users where to sign in;
+# CORS_ORIGINS lists browser origins allowed to send cookies. Both are inert
+# unless the AUTHZ service binding below is configured.
+# DASHBOARD_URL = "http://localhost:5174"
+# CORS_ORIGINS = "http://localhost:5173"
+# AUTHZ_TIMEOUT_MS = "250"
 
 [triggers]
 crons = ["0 */12 * * *"]
@@ -70,6 +77,8 @@ QUOTE_CACHE_TTL_SECONDS = "300"
 RATE_LIMIT_RPM = "60"
 WEB_URL = "https://www.teemtape.com"
 SEC_USER_AGENT = "teemtape-api symbols-sync contact@teemtape.com"
+CORS_ORIGINS = "https://teemtape.com,https://www.teemtape.com"
+# DASHBOARD_URL = "https://app.teemtape.com"
 
 [env.production.triggers]
 crons = ["0 */12 * * *"]
@@ -83,6 +92,13 @@ migrations_dir = "migrations"
 [[env.production.kv_namespaces]]
 binding = "QUOTES_CACHE"
 id = "41d888270da045619243fce144418046"
+
+# Optional authorisation hook — the private teemtape-pro API. Uncomment (and
+# set DASHBOARD_URL above) once that Worker is deployed. Absent → every
+# watchlist is public, exactly as today. Contract: docs/authz-contract.md.
+# [[env.production.services]]
+# binding = "AUTHZ"
+# service = "teemtape-pro-api"
 
 # --- Not used yet ----------------------------------------------------------
 # teemtape uses D1 (notes/watchlists) + KV (quote cache). We do NOT use R2
