@@ -25,7 +25,7 @@ Quotes are intentionally delayed (~1 min) and informational only.
 | `POST /api/watchlists` | Create an anonymous watchlist (returns an MD5-shaped token) |
 | `POST /api/handles` | Claim `{ handle }`, or auto-generate a unique one (empty body) |
 | `GET /api/handles/:handle` | Check availability (`{ handle, available }`) |
-| `GET /api/whoami` | `{ user: { handle } | null }` — the signed-in caller, when the [authorisation hook](#authorisation-hook-teemtape-pro) is configured |
+| `GET /api/whoami` | The signed-in caller (`{ user: { handle } }`, or `{ user: null }`) when the [authorisation hook](#authorisation-hook-teemtape-pro) is configured |
 | `GET /api/w/:token` | Watchlist + symbols |
 | `GET /api/w/:token/agent` | Aggregate agent payload: watchlist, per-symbol note threads (optional `?limit=`, max 50) |
 | `POST /api/w/:token/symbols` | Add a symbol (`{ "symbol": "AAPL" }`) |
