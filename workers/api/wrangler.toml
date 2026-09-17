@@ -93,12 +93,15 @@ migrations_dir = "migrations"
 binding = "QUOTES_CACHE"
 id = "41d888270da045619243fce144418046"
 
-# Optional authorisation hook — the private teemtape-pro API. Uncomment (and
-# set DASHBOARD_URL above) once that Worker is deployed. Absent → every
-# watchlist is public, exactly as today. Contract: docs/authz-contract.md.
+# Optional authorisation hook — the private teemtape-pro Worker
+# (github.com/kiwifellows/teemtape-pro, app.teemtape.com). It exposes the hook
+# as a *named entrypoint* ("Authz"), reachable only through this binding.
+# Uncomment (and set DASHBOARD_URL above) once accounts exist there. Absent →
+# every watchlist is public, exactly as today. Contract: docs/authz-contract.md.
 # [[env.production.services]]
 # binding = "AUTHZ"
-# service = "teemtape-pro-api"
+# service = "teemtape-pro"
+# entrypoint = "Authz"
 
 # --- Not used yet ----------------------------------------------------------
 # teemtape uses D1 (notes/watchlists) + KV (quote cache). We do NOT use R2

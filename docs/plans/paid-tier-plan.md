@@ -167,7 +167,8 @@ and ~zero latency. The public API gets an optional binding:
 # workers/api/wrangler.toml — hosted production only; absent for self-hosters
 [[env.production.services]]
 binding = "AUTHZ"
-service = "teemtape-pro-api"
+service = "teemtape-pro"
+entrypoint = "Authz"
 ```
 
 Contract (`docs/authz-contract.md` in the public repo, MIT, versioned):

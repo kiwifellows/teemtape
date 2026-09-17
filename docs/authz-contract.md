@@ -147,7 +147,8 @@ AUTHZ_TIMEOUT_MS = "250"                           # optional
 
 [[services]]
 binding = "AUTHZ"
-service = "teemtape-pro-api"
+service = "teemtape-pro"        # the private Worker (github.com/kiwifellows/teemtape-pro)
+entrypoint = "Authz"            # a named entrypoint: reachable only via this binding, never over HTTP
 ```
 
 `CORS_ORIGINS` matters because browsers refuse to send cookies to a `*`
