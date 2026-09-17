@@ -128,3 +128,20 @@ export interface SymbolsListResponse {
   /** Sort order applied: ticker or title. */
   sort: "ticker" | "title";
 }
+
+/** Why the authorisation hook refused a request (401 → sign in, 403 → insufficient role). */
+export type AccessDeniedReason = "sign_in_required" | "forbidden";
+
+/** Body of a 401/403 produced by the authorisation hook (see docs/authz-contract.md). */
+export interface AccessDeniedBody {
+  error: string;
+  reason: AccessDeniedReason;
+  /** Where to sign in, when the API is configured with DASHBOARD_URL. */
+  signInUrl?: string;
+}
+
+/** GET /api/whoami */
+export interface WhoamiResponse {
+  /** The signed-in caller, or null when anonymous / no authorisation hook. */
+  user: { handle: string } | null;
+}

@@ -109,3 +109,49 @@ test("search: requires a query or filter", async () => {
     return true;
   });
 });
+
+test("login: verifies and saves an access token; private lists then work; logout forgets it", async (t) => {
+  const seeded = "6f1ed002ab5595859014ebf0951522d9";
+  const server = createMockServer({
+    authz: { privateTokens: seeded, accessToken: "pat-good", signInUrl: "https://app.test" },
+  });
+  server.listen(0);
+  await once(server, "listening");
+  const apiUrl = `http://localhost:${server.address().port}`;
+  t.after(() => server.close());
+  const env = { TEEMTAPE_API_URL: apiUrl, XDG_CONFIG_HOME: mkdtempSync(join(tmpdir(), "teemtape-login-")) };
+
+  // anonymous → denied with a sign-in hint
+  await assert.rejects(
+    () => cli(["--token", seeded, "list"], env),
+    (err) => {
+      assert.match(err.stderr, /HTTP 401/);
+      assert.match(err.stderr, /teemtape login/);
+      assert.match(err.stderr, /https:\/\/app\.test/);
+      return true;
+    },
+  );
+
+  // a bad token is rejected before it is saved
+  await assert.rejects(() => cli(["login", "pat-bad"], env), (err) => /did not recognise/.test(err.stderr));
+  assert.equal(JSON.parse((await cli(["--json", "config"], env)).stdout).accessToken, "(none)");
+
+  // a good token is verified, saved masked, and unlocks the list
+  const { stdout } = await cli(["--json", "login", "pat-good"], env);
+  assert.equal(JSON.parse(stdout).handle, "mockuser");
+  const cfg = JSON.parse((await cli(["--json", "config"], env)).stdout);
+  assert.equal(cfg.accessToken, "****");
+  assert.ok(!JSON.stringify(cfg).includes("pat-good"));
+  const listed = await cli(["--json", "--token", seeded, "list"], env);
+  assert.ok(JSON.parse(listed.stdout).quotes.length > 0);
+
+  // wrong token in env → 403 with a role hint
+  await assert.rejects(
+    () => cli(["--token", seeded, "list"], { ...env, TEEMTAPE_ACCESS_TOKEN: "pat-other" }),
+    (err) => /HTTP 403/.test(err.stderr) && /does not allow/.test(err.stderr),
+  );
+
+  // logout
+  await cli(["logout"], env);
+  assert.equal(JSON.parse((await cli(["--json", "config"], env)).stdout).accessToken, "(none)");
+});

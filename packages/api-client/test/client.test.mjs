@@ -84,3 +84,41 @@ test("client surfaces API errors and missing-token errors", async (t) => {
   const noToken = new TeemtapeClient({ baseUrl });
   await assert.rejects(() => noToken.getWatchlist(), /token is required/);
 });
+
+test("client sends a bearer access token and surfaces authorisation denials", async (t) => {
+  const seeded = "6f1ed002ab5595859014ebf0951522d9";
+  const server = createMockServer({ authz: { privateTokens: seeded, accessToken: "pat-1", signInUrl: "https://app.test" } });
+  server.listen(0);
+  await once(server, "listening");
+  const baseUrl = `http://localhost:${server.address().port}`;
+  t.after(() => server.close());
+
+  // anonymous → 401 sign_in_required with a sign-in URL
+  const anon = new TeemtapeClient({ baseUrl, token: seeded });
+  await assert.rejects(anon.getWatchlist(), (err) => {
+    assert.ok(err instanceof ApiError);
+    assert.equal(err.status, 401);
+    assert.equal(err.accessDenied, true);
+    assert.equal(err.reason, "sign_in_required");
+    assert.equal(err.signInUrl, "https://app.test");
+    return true;
+  });
+  assert.deepEqual(await anon.whoami(), { user: null });
+
+  // wrong token → 403 forbidden
+  const wrong = new TeemtapeClient({ baseUrl, token: seeded, accessToken: "nope" });
+  await assert.rejects(wrong.getWatchlist(), (err) => err.status === 403 && err.reason === "forbidden");
+
+  // right token → through, and whoami knows us
+  const ok = new TeemtapeClient({ baseUrl, token: seeded, accessToken: "pat-1" });
+  assert.equal((await ok.getWatchlist()).token, seeded);
+  assert.deepEqual(await ok.whoami(), { user: { handle: "mockuser" } });
+
+  // a plain 404 is not an access denial
+  await assert.rejects(new TeemtapeClient({ baseUrl, token: "0".repeat(32) }).getWatchlist(), (err) => {
+    assert.equal(err.status, 404);
+    assert.equal(err.accessDenied, false);
+    assert.equal(err.reason, undefined);
+    return true;
+  });
+});

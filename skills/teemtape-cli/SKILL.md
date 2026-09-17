@@ -32,6 +32,7 @@ informational only.
 | API URL | `--api-url` | `TEEMTAPE_API_URL` | `https://api.teemtape.com` |
 | Token | `--token` | `TEEMTAPE_TOKEN` | (none — required for watchlist commands) |
 | Web URL | `--web-url` | `TEEMTAPE_WEB_URL` | `https://www.teemtape.com` |
+| Access token | `--access-token` | `TEEMTAPE_ACCESS_TOKEN` | (none — only for teemtape Pro private watchlists) |
 
 ## Local development
 
@@ -93,6 +94,8 @@ teemtape note NVDA --message "Your observation here." --json
 | `notes <SYMBOL>` | Yes | Read note thread |
 | `note <SYMBOL> -m "…"` | Yes | Post anonymous note |
 | `share` | Yes | Print shareable watchlist URL |
+| `login [PAT]` | No | Save a teemtape Pro access token (unlocks private watchlists) |
+| `logout` | No | Forget the saved access token |
 | `config` | No | Show resolved config (token masked) |
 
 \* `list --symbols` fetches quotes without needing symbols on the watchlist, but still
@@ -123,7 +126,12 @@ Key types:
 - **Use `search` to resolve ambiguous tickers** before `add` or `note`.
 - **Handle errors**: non-zero exit code with `error: …` on stderr. Common causes:
   - `ECONNREFUSED` — API not running; start mock or Worker.
-  - HTTP 401/403 — missing or invalid token; run `init` or pass `--token`.
+  - HTTP 401 with `"reason": "sign_in_required"` — the watchlist is private (teemtape Pro).
+    Ask the user for an access token, then `teemtape login <PAT>` or set `TEEMTAPE_ACCESS_TOKEN`.
+    Never guess or fabricate a token.
+  - HTTP 403 with `"reason": "forbidden"` — the access token has no role (or too low a role)
+    on this watchlist; the owner must grant one. Do not retry.
+  - Other HTTP 401/403 — missing or invalid token; run `init` or pass `--token`.
   - HTTP 404 — symbol not on watchlist (run `add` first for watchlist-scoped commands).
 - **Share links**: `teemtape share --json` returns the anonymous URL others can open in the browser.
 

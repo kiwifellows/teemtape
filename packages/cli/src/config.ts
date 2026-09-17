@@ -9,6 +9,14 @@ export interface ResolvedConfig {
   token?: string;
   /** Anonymous handle (e.g. "user1234") attached to notes posted from the CLI. */
   handle?: string;
+  /**
+   * teemtape Pro personal access token, sent as `Authorization: Bearer …`.
+   * Unlocks private watchlists and role checks on the hosted API; harmless
+   * against a self-hosted API without the authorisation hook.
+   */
+  accessToken?: string;
+  /** Base URL of the teemtape Pro app (where access tokens are created). */
+  dashboardUrl: string;
 }
 
 export interface ConfigFlags {
@@ -16,11 +24,14 @@ export interface ConfigFlags {
   webUrl?: string;
   token?: string;
   handle?: string;
+  accessToken?: string;
+  dashboardUrl?: string;
 }
 
 const DEFAULTS = {
   apiUrl: "https://api.teemtape.com",
   webUrl: "https://www.teemtape.com",
+  dashboardUrl: "https://app.teemtape.com",
 };
 
 /** Path to the persisted config file (XDG-aware, falls back to ~/.config). */
@@ -34,6 +45,8 @@ interface StoredConfig {
   webUrl?: string;
   token?: string;
   handle?: string;
+  accessToken?: string;
+  dashboardUrl?: string;
 }
 
 function readConfigFile(): StoredConfig {
@@ -55,6 +68,8 @@ export function resolveConfig(flags: ConfigFlags = {}): ResolvedConfig {
     webUrl: process.env.TEEMTAPE_WEB_URL,
     token: process.env.TEEMTAPE_TOKEN,
     handle: process.env.TEEMTAPE_HANDLE,
+    accessToken: process.env.TEEMTAPE_ACCESS_TOKEN,
+    dashboardUrl: process.env.TEEMTAPE_DASHBOARD_URL,
   };
 
   return {
@@ -62,7 +77,19 @@ export function resolveConfig(flags: ConfigFlags = {}): ResolvedConfig {
     webUrl: flags.webUrl ?? env.webUrl ?? file.webUrl ?? DEFAULTS.webUrl,
     token: flags.token ?? env.token ?? file.token,
     handle: flags.handle ?? env.handle ?? file.handle,
+    accessToken: flags.accessToken ?? env.accessToken ?? file.accessToken,
+    dashboardUrl: flags.dashboardUrl ?? env.dashboardUrl ?? file.dashboardUrl ?? DEFAULTS.dashboardUrl,
   };
+}
+
+/** Remove keys from the config file (e.g. `teemtape logout`). */
+export function clearConfig(keys: Array<keyof StoredConfig>): string {
+  const path = configFilePath();
+  const current = readConfigFile();
+  for (const key of keys) delete current[key];
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(current, null, 2)}\n`, { mode: 0o600 });
+  return path;
 }
 
 /** Persist values to the config file (merges with existing). */

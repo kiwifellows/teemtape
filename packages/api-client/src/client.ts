@@ -1,4 +1,5 @@
 import type {
+  AccessDeniedReason,
   AgentWatchlistResponse,
   CreateNoteInput,
   Handle,
@@ -8,6 +9,7 @@ import type {
   QuotesResponse,
   SymbolsListResponse,
   Watchlist,
+  WhoamiResponse,
 } from "./types.js";
 
 export interface ApiClientOptions {
@@ -15,6 +17,17 @@ export interface ApiClientOptions {
   baseUrl: string;
   /** Optional default watchlist token used by watchlist/note calls. */
   token?: string;
+  /**
+   * Optional personal access token (teemtape Pro). Sent as
+   * `Authorization: Bearer …` so private watchlists and role checks work for
+   * the CLI and agents. Ignored by self-hosted APIs without the authz hook.
+   */
+  accessToken?: string;
+  /**
+   * Fetch credentials mode. Browsers on teemtape.com pass `"include"` so the
+   * `.teemtape.com` session cookie set by the app travels with API calls.
+   */
+  credentials?: "omit" | "same-origin" | "include";
   /** Injectable fetch (defaults to global fetch); handy for tests. */
   fetch?: typeof fetch;
 }
@@ -30,6 +43,23 @@ export class ApiError extends Error {
     this.status = status;
     this.body = body;
   }
+
+  /** True for a 401/403 produced by the authorisation hook (private list or insufficient role). */
+  get accessDenied(): boolean {
+    return (this.status === 401 || this.status === 403) && this.reason !== undefined;
+  }
+
+  /** `sign_in_required` (401) or `forbidden` (403) when the authorisation hook denied the request. */
+  get reason(): AccessDeniedReason | undefined {
+    const r = isRecord(this.body) ? this.body.reason : undefined;
+    return r === "sign_in_required" || r === "forbidden" ? r : undefined;
+  }
+
+  /** Where the caller can sign in, when the API knows (DASHBOARD_URL). */
+  get signInUrl(): string | undefined {
+    const u = isRecord(this.body) ? this.body.signInUrl : undefined;
+    return typeof u === "string" ? u : undefined;
+  }
 }
 
 /**
@@ -39,11 +69,15 @@ export class ApiError extends Error {
 export class TeemtapeClient {
   private readonly baseUrl: string;
   private readonly token?: string;
+  private readonly accessToken?: string;
+  private readonly credentials?: "omit" | "same-origin" | "include";
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: ApiClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.token = options.token;
+    this.accessToken = options.accessToken;
+    this.credentials = options.credentials;
     // Wrap default fetch: assigning window.fetch to a variable breaks in browsers
     // ("Illegal invocation") unless called with the correct receiver.
     this.fetchImpl =
@@ -77,6 +111,14 @@ export class TeemtapeClient {
     if (params.name) search.set("name", params.name);
     const qs = search.toString();
     return this.request<SymbolsListResponse>(`/api/symbols${qs ? `?${qs}` : ""}`);
+  }
+
+  /**
+   * Who does the API think the caller is? `{ user: null }` when anonymous, or
+   * always when talking to a self-hosted API without the authorisation hook.
+   */
+  async whoami(): Promise<WhoamiResponse> {
+    return this.request<WhoamiResponse>(`/api/whoami`);
   }
 
   /** Create a new anonymous watchlist and return its MD5 token. */
@@ -145,8 +187,15 @@ export class TeemtapeClient {
       headers.set("content-type", "application/json");
     }
     headers.set("accept", "application/json");
+    if (this.accessToken && !headers.has("authorization")) {
+      headers.set("authorization", `Bearer ${this.accessToken}`);
+    }
 
-    const res = await this.fetchImpl(`${this.baseUrl}${path}`, { ...init, headers });
+    const res = await this.fetchImpl(`${this.baseUrl}${path}`, {
+      ...init,
+      headers,
+      ...(this.credentials ? { credentials: this.credentials } : {}),
+    });
     const text = await res.text();
     const data = text ? safeJsonParse(text) : undefined;
 

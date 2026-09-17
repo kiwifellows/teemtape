@@ -8,13 +8,55 @@ import { BASE_QUOTES, COMPANY_NAMES, seedNotes, seedWatchlists } from "./data.mj
 export const DELAY_SECONDS = 60;
 
 function send(res, status, body) {
+  // Mirror the Worker: echo a browser origin (so cookies/credentials work), else "*".
+  const origin = res.req?.headers.origin;
   res.writeHead(status, {
     "content-type": "application/json",
-    "access-control-allow-origin": "*",
+    "access-control-allow-origin": origin || "*",
+    ...(origin ? { "access-control-allow-credentials": "true", vary: "origin" } : {}),
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type,accept",
+    "access-control-allow-headers": "content-type,accept,authorization",
   });
   res.end(JSON.stringify(body));
+}
+
+/**
+ * Simulate the hosted API's optional authorisation hook (docs/authz-contract.md)
+ * so clients can exercise the "private watchlist" path locally.
+ *
+ *   MOCK_PRIVATE_TOKENS   comma-separated watchlist tokens treated as private
+ *   MOCK_ACCESS_TOKEN     the bearer token that unlocks them (default "mock-pat")
+ *   MOCK_SIGN_IN_URL      returned as `signInUrl` (default http://localhost:5174)
+ *
+ * Any other bearer token on a private list → 403; none → 401. `whoami` reports
+ * `{ handle: "mockuser" }` for the accepted token.
+ */
+export function createAuthzSim(options = {}) {
+  const privateTokens = new Set(
+    (options.privateTokens ?? process.env.MOCK_PRIVATE_TOKENS ?? "").split(",").map((t) => t.trim()).filter(Boolean),
+  );
+  const accessToken = options.accessToken ?? process.env.MOCK_ACCESS_TOKEN ?? "mock-pat";
+  const signInUrl = options.signInUrl ?? process.env.MOCK_SIGN_IN_URL ?? "http://localhost:5174";
+
+  const bearer = (req) => {
+    const m = (req.headers.authorization ?? "").match(/^Bearer\s+(.+)$/i);
+    return m ? m[1].trim() : undefined;
+  };
+
+  return {
+    /** Returns a denial body for a private list, or undefined when access is allowed. */
+    deny(req, token) {
+      if (!privateTokens.has(token)) return undefined;
+      const provided = bearer(req);
+      if (provided === accessToken) return undefined;
+      return provided
+        ? { status: 403, body: { error: "you do not have permission to do that on this watchlist", reason: "forbidden", signInUrl } }
+        : { status: 401, body: { error: "this watchlist is private — sign in to continue", reason: "sign_in_required", signInUrl } };
+    },
+    whoami(req) {
+      return bearer(req) === accessToken ? { handle: "mockuser" } : null;
+    },
+  };
 }
 
 async function readJson(req) {
@@ -59,10 +101,11 @@ function suggestHandle() {
 }
 
 /** Create a fresh mock server (not yet listening) with its own seeded state. */
-export function createMockServer() {
+export function createMockServer(options = {}) {
   const watchlists = seedWatchlists();
   const notes = seedNotes();
   const handles = new Set();
+  const authz = createAuthzSim(options.authz);
 
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -80,6 +123,10 @@ export function createMockServer() {
       const symbols = raw.split(",").map((s) => s.trim()).filter(Boolean);
       if (symbols.length === 0) return send(res, 400, { error: "symbols query param is required" });
       return send(res, 200, { quotes: symbols.map(quoteFor), delayedSeconds: DELAY_SECONDS, source: "mock" });
+    }
+
+    if (path === "/api/whoami" && method === "GET") {
+      return send(res, 200, { user: authz.whoami(req) });
     }
 
     if (path === "/api/watchlists" && method === "POST") {
@@ -116,6 +163,8 @@ export function createMockServer() {
     if (wMatch) {
       const token = wMatch[1];
       const sub = wMatch[2];
+      const denied = authz.deny(req, token);
+      if (denied) return send(res, denied.status, denied.body);
       const watchlist = watchlists.get(token);
       if (!watchlist) return send(res, 404, { error: "unknown watchlist token" });
 

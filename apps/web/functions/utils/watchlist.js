@@ -39,10 +39,24 @@ export function resolveApiBase(env) {
   return env.API_BASE_URL || "https://api.teemtape.com";
 }
 
+/**
+ * Headers to forward so the Worker's optional authorisation hook can see who
+ * is asking: a bearer access token (agents) or the session cookie (browser).
+ */
+export function credentialHeaders(request) {
+  const headers = {};
+  if (!request) return headers;
+  const authorization = request.headers.get("authorization");
+  const cookie = request.headers.get("cookie");
+  if (authorization) headers.authorization = authorization;
+  if (cookie) headers.cookie = cookie;
+  return headers;
+}
+
 /** Fetch aggregate watchlist + note threads from the Worker (single request). */
-export async function fetchAgentPayload(apiBaseUrl, token, { limit = MAX_EMBED_SYMBOLS } = {}) {
+export async function fetchAgentPayload(apiBaseUrl, token, { limit = MAX_EMBED_SYMBOLS, request } = {}) {
   const res = await fetch(`${apiBaseUrl}/api/w/${token}/agent?limit=${limit}`, {
-    headers: { accept: "application/json" },
+    headers: { accept: "application/json", ...credentialHeaders(request) },
   });
   if (!res.ok) {
     return {

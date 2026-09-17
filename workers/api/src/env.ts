@@ -40,6 +40,23 @@ export interface Env {
   /** Web app base URL, used to build share links. */
   WEB_URL?: string;
 
+  /**
+   * Optional authorisation hook (service binding to the private pro API).
+   * Absent → every watchlist is public, exactly today's behaviour.
+   * See docs/authz-contract.md and src/authz.ts.
+   */
+  AUTHZ?: Fetcher;
+  /** Where to send callers who need to sign in (returned in 401/403 bodies). */
+  DASHBOARD_URL?: string;
+  /** Timeout for a single AUTHZ call in ms (string in vars). Default 250. */
+  AUTHZ_TIMEOUT_MS?: string;
+  /**
+   * Comma-separated browser origins allowed to send credentials (cookies).
+   * Requests from these origins get an exact-origin CORS echo plus
+   * `access-control-allow-credentials: true`; everyone else gets `*`.
+   */
+  CORS_ORIGINS?: string;
+
   /** Descriptive User-Agent for the SEC symbols sync cron (fair-access policy). */
   SEC_USER_AGENT: string;
 
