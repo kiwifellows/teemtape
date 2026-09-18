@@ -84,6 +84,25 @@ export interface Watchlist {
   token: string;
   symbols: string[];
   createdAt: string;
+  /**
+   * What the caller may do on this list, per the API's optional authorisation
+   * hook. Absent on API versions that predate it (treat as fully open).
+   */
+  access?: WatchlistAccess;
+}
+
+export type WatchlistRole = "owner" | "editor" | "commenter" | "viewer" | "anonymous";
+export type WatchlistLinkAccess = "public-edit" | "public-comment" | "public-view" | "private";
+
+/** Returned with `GET /api/w/:token` so UIs can grey out controls and explain why. */
+export interface WatchlistAccess {
+  /** The caller's role on this list; `anonymous` = no membership (link access applies). */
+  role: WatchlistRole;
+  /** What the bare share link grants to non-members. */
+  linkAccess: WatchlistLinkAccess;
+  can: { addSymbol: boolean; postNote: boolean; manage: boolean };
+  /** The signed-in caller, or null. */
+  user: { handle: string } | null;
 }
 
 /** One symbol row in the agent aggregate watchlist payload. */

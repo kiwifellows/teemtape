@@ -36,13 +36,46 @@ export interface AuthzResponse {
   link_access?: LinkAccess;
   user?: { handle: string };
   reason?: "sign_in_required" | "forbidden";
+  /** Every list action this caller may perform here (optional, additive). */
+  grants?: ListAction[];
 }
+
+export type ListAction = Exclude<AuthzAction, "created" | "identify">;
 
 /** Result of a successful authorisation, handed back to the router. */
 export interface AuthzDecision {
   role: Role;
   linkAccess: LinkAccess;
   user?: { handle: string };
+  /** What the caller may do on this list; surfaced to clients as `access.can`. */
+  grants: ReadonlySet<ListAction>;
+}
+
+/** The `access` block returned with a watchlist, for UIs to explain permissions. */
+export interface WatchlistAccess {
+  role: Role;
+  linkAccess: LinkAccess;
+  can: { addSymbol: boolean; postNote: boolean; manage: boolean };
+  user: { handle: string } | null;
+}
+
+export function toWatchlistAccess(d: AuthzDecision): WatchlistAccess {
+  return {
+    role: d.role,
+    linkAccess: d.linkAccess,
+    can: { addSymbol: d.grants.has("add_symbol"), postNote: d.grants.has("post_note"), manage: d.grants.has("manage") },
+    user: d.user ?? null,
+  };
+}
+
+const ALL_ACTIONS: ReadonlySet<string> = new Set<ListAction>(["view", "add_symbol", "post_note", "manage"]);
+
+/** `grants` from the authoriser when present, else what the link alone allows. */
+function grantsOf(result: AuthzResponse, linkAccess: LinkAccess): ReadonlySet<ListAction> {
+  if (Array.isArray(result.grants)) {
+    return new Set(result.grants.filter((a): a is ListAction => typeof a === "string" && ALL_ACTIONS.has(a)));
+  }
+  return LINK_GRANTS[linkAccess];
 }
 
 const CACHE_PREFIX = "authz:v1:";
@@ -56,7 +89,7 @@ const LINK_ACCESS_VALUES: ReadonlySet<string> = new Set<LinkAccess>([
 ]);
 
 /** Which list actions each link-access level grants to an anonymous caller. */
-const LINK_GRANTS: Record<LinkAccess, ReadonlySet<AuthzAction>> = {
+const LINK_GRANTS: Record<LinkAccess, ReadonlySet<ListAction>> = {
   "public-edit": new Set(["view", "add_symbol", "post_note"]),
   "public-comment": new Set(["view", "post_note"]),
   "public-view": new Set(["view"]),
@@ -142,7 +175,7 @@ export async function authorize(
   token: string,
   action: Exclude<AuthzAction, "created" | "identify">,
 ): Promise<AuthzDecision> {
-  if (!env.AUTHZ) return { role: "anonymous", linkAccess: "public-edit" };
+  if (!env.AUTHZ) return { role: "anonymous", linkAccess: "public-edit", grants: LINK_GRANTS["public-edit"] };
 
   const credential = extractCredential(request);
 
@@ -150,7 +183,7 @@ export async function authorize(
   if (!credential) {
     const cached = await readCachedLinkAccess(env, token);
     if (cached && LINK_GRANTS[cached].has(action)) {
-      return { role: "anonymous", linkAccess: cached };
+      return { role: "anonymous", linkAccess: cached, grants: LINK_GRANTS[cached] };
     }
   }
 
@@ -163,7 +196,8 @@ export async function authorize(
     if (cached && cached !== "public-edit") {
       throw new HttpError(503, "authorisation service unavailable", { "retry-after": "5" });
     }
-    return { role: "anonymous", linkAccess: cached ?? "public-edit" };
+    const linkAccess = cached ?? "public-edit";
+    return { role: "anonymous", linkAccess, grants: LINK_GRANTS[linkAccess] };
   }
 
   const linkAccess = result.link_access ?? "public-edit";
@@ -171,7 +205,7 @@ export async function authorize(
 
   if (!result.allow) throw denied(env, result.reason, credential !== undefined);
 
-  return { role: result.role ?? "anonymous", linkAccess, user: result.user };
+  return { role: result.role ?? "anonymous", linkAccess, user: result.user, grants: grantsOf(result, linkAccess) };
 }
 
 /** Who is the caller? `null` when anonymous or when no AUTHZ binding is configured. */

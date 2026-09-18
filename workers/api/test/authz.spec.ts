@@ -48,6 +48,7 @@ describe("authz hook", () => {
         await expect(authorize(req, unbound, "a".repeat(32), action)).resolves.toEqual({
           role: "anonymous",
           linkAccess: "public-edit",
+          grants: new Set(["view", "add_symbol", "post_note"]),
         });
       }
     });
@@ -116,6 +117,45 @@ describe("authz hook", () => {
       // a signed-in non-member is bound by link access too, but gets 403 rather than 401
       expect((await post(`/api/w/${token}/symbols`, { symbol: "NVDA" }, asAlice)).status).toBe(403);
       expect((await post(`/api/w/${token}/notes`, { symbol: "NVDA", body: "hi" })).status).toBe(201);
+    });
+  });
+
+  describe("access block on GET /api/w/:token", () => {
+    const access = async (token: string, headers: Record<string, string> = {}) =>
+      ((await (await get(`/api/w/${token}`, headers)).json()) as { access: unknown }).access;
+
+    it("tells the UI what the caller may do, and who they are", async () => {
+      const token = await newList();
+      await control("/__set", { token, link_access: "public-view", members: { alice: "commenter" } });
+
+      expect(await access(token)).toEqual({
+        role: "anonymous",
+        linkAccess: "public-view",
+        can: { addSymbol: false, postNote: false, manage: false },
+        user: null,
+      });
+      expect(await access(token, asAlice)).toEqual({
+        role: "commenter",
+        linkAccess: "public-view",
+        can: { addSymbol: false, postNote: true, manage: false },
+        user: { handle: "alice" },
+      });
+      // signed in but not a member: bound by the link, but we still say who they are
+      expect(await access(token, asBobCookie)).toMatchObject({ role: "anonymous", can: { postNote: false }, user: { handle: "bob" } });
+    });
+
+    it("derives `can` from link access when the authoriser sends no grants", async () => {
+      const token = await newList();
+      await control("/__set", { token, link_access: "public-comment", omitGrants: true });
+      expect(await access(token)).toMatchObject({ can: { addSymbol: false, postNote: true, manage: false } });
+    });
+
+    it("is fully open with no binding", async () => {
+      const token = await newList();
+      const res = await SELF.fetch(`${BASE}/api/w/${token}`);
+      const body = (await res.json()) as { access: { can: Record<string, boolean> } };
+      // the test binding is present, so this exercises the public-edit default for an unknown list
+      expect(body.access.can).toEqual({ addSymbol: true, postNote: true, manage: false });
     });
   });
 
