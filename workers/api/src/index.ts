@@ -1,4 +1,4 @@
-import { authorize, identify, notifyCreated } from "./authz.js";
+import { authorize, identify, notifyCreated, toWatchlistAccess } from "./authz.js";
 import type { Env } from "./env.js";
 import { applyCors, error, HttpError, json, noContent } from "./http.js";
 import { getQuotes } from "./quotes.js";
@@ -114,8 +114,8 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
     const sub = match[2];
 
     if (!sub && method === "GET") {
-      await authorize(request, env, token, "view");
-      return json(await getWatchlist(env, token));
+      const decision = await authorize(request, env, token, "view");
+      return json({ ...(await getWatchlist(env, token)), access: toWatchlistAccess(decision) });
     }
 
     if (sub === "/agent" && method === "GET") {

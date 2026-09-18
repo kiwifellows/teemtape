@@ -734,3 +734,32 @@
     justify-content: center;
   }
 }
+
+/* Permission messaging (teemtape Pro link access / roles) */
+.status-banner.access {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.status-banner.access a {
+  color: var(--accent);
+}
+.access-badge {
+  margin-left: var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+  padding: 1px 8px;
+}
+.access-reason {
+  font-size: 13px;
+  padding: 6px 0;
+}
+.compose-blocked {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.compose-blocked a {
+  color: var(--accent);
+}

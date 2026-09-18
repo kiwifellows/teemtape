@@ -22,39 +22,95 @@ function send(res, status, body) {
 
 /**
  * Simulate the hosted API's optional authorisation hook (docs/authz-contract.md)
- * so clients can exercise the "private watchlist" path locally.
+ * so clients can exercise link access and roles locally.
  *
  *   MOCK_PRIVATE_TOKENS   comma-separated watchlist tokens treated as private
- *   MOCK_ACCESS_TOKEN     the bearer token that unlocks them (default "mock-pat")
+ *   MOCK_LINK_ACCESS      "token:public-view,token2:public-comment" for other levels
+ *   MOCK_ACCESS_TOKEN     bearer token of the list OWNER (default "mock-pat")
+ *   MOCK_SESSION_ROLE     role for a browser carrying cookie `mock_session=1`:
+ *                         anonymous (default: signed in, not a member), viewer,
+ *                         commenter, editor, owner
  *   MOCK_SIGN_IN_URL      returned as `signInUrl` (default http://localhost:5174)
  *
- * Any other bearer token on a private list → 403; none → 401. `whoami` reports
- * `{ handle: "mockuser" }` for the accepted token.
+ * Everything else is anonymous and bound by the link. `whoami` reports
+ * `mockuser` for the owner token and `visitor` for the session cookie.
  */
 export function createAuthzSim(options = {}) {
   const privateTokens = new Set(
     (options.privateTokens ?? process.env.MOCK_PRIVATE_TOKENS ?? "").split(",").map((t) => t.trim()).filter(Boolean),
   );
+  const linkAccessByToken = new Map(
+    (options.linkAccess ?? process.env.MOCK_LINK_ACCESS ?? "")
+      .split(",")
+      .map((pair) => pair.trim().split(":"))
+      .filter(([t, a]) => t && a),
+  );
   const accessToken = options.accessToken ?? process.env.MOCK_ACCESS_TOKEN ?? "mock-pat";
+  const sessionRole = options.sessionRole ?? process.env.MOCK_SESSION_ROLE ?? "anonymous";
   const signInUrl = options.signInUrl ?? process.env.MOCK_SIGN_IN_URL ?? "http://localhost:5174";
+
+  const ROLE_GRANTS = {
+    owner: ["view", "add_symbol", "post_note", "manage"],
+    editor: ["view", "add_symbol", "post_note"],
+    commenter: ["view", "post_note"],
+    viewer: ["view"],
+    anonymous: [],
+  };
+  const LINK_GRANTS = {
+    "public-edit": ["view", "add_symbol", "post_note"],
+    "public-comment": ["view", "post_note"],
+    "public-view": ["view"],
+    private: [],
+  };
 
   const bearer = (req) => {
     const m = (req.headers.authorization ?? "").match(/^Bearer\s+(.+)$/i);
     return m ? m[1].trim() : undefined;
   };
+  const hasSession = (req) => /(?:^|;\s*)mock_session=1/.test(req.headers.cookie ?? "");
+  const linkAccess = (token) => (privateTokens.has(token) ? "private" : linkAccessByToken.get(token) ?? "public-edit");
+
+  /** { role, user } for the caller. */
+  const caller = (req) => {
+    const provided = bearer(req);
+    if (provided === accessToken) return { role: "owner", user: { handle: "mockuser" } };
+    // An unknown bearer token identifies nobody but still counts as a credential
+    // (denials are 403 "forbidden" rather than 401 "sign in"), as before.
+    if (provided) return { role: "anonymous", user: null, credentialed: true };
+    if (hasSession(req)) return { role: sessionRole, user: { handle: "visitor" } };
+    return { role: "anonymous", user: null };
+  };
+
+  const decide = (req, token) => {
+    const { role, user, credentialed } = caller(req);
+    const link = linkAccess(token);
+    const grants = ["view", "add_symbol", "post_note", "manage"].filter(
+      (a) => ROLE_GRANTS[role].includes(a) || LINK_GRANTS[link].includes(a),
+    );
+    return { role, user, credentialed, linkAccess: link, grants };
+  };
 
   return {
-    /** Returns a denial body for a private list, or undefined when access is allowed. */
-    deny(req, token) {
-      if (!privateTokens.has(token)) return undefined;
-      const provided = bearer(req);
-      if (provided === accessToken) return undefined;
-      return provided
+    /** Returns a denial body when the caller may not perform `action`, else undefined. */
+    deny(req, token, action = "view") {
+      const d = decide(req, token);
+      if (d.grants.includes(action)) return undefined;
+      return d.user || d.credentialed
         ? { status: 403, body: { error: "you do not have permission to do that on this watchlist", reason: "forbidden", signInUrl } }
         : { status: 401, body: { error: "this watchlist is private — sign in to continue", reason: "sign_in_required", signInUrl } };
     },
+    /** The `access` block returned with GET /api/w/:token. */
+    access(req, token) {
+      const d = decide(req, token);
+      return {
+        role: d.role,
+        linkAccess: d.linkAccess,
+        can: { addSymbol: d.grants.includes("add_symbol"), postNote: d.grants.includes("post_note"), manage: d.grants.includes("manage") },
+        user: d.user,
+      };
+    },
     whoami(req) {
-      return bearer(req) === accessToken ? { handle: "mockuser" } : null;
+      return caller(req).user;
     },
   };
 }
@@ -163,12 +219,13 @@ export function createMockServer(options = {}) {
     if (wMatch) {
       const token = wMatch[1];
       const sub = wMatch[2];
-      const denied = authz.deny(req, token);
+      const action = method === "GET" ? "view" : sub === "/symbols" ? "add_symbol" : sub === "/notes" ? "post_note" : "view";
+      const denied = authz.deny(req, token, action);
       if (denied) return send(res, denied.status, denied.body);
       const watchlist = watchlists.get(token);
       if (!watchlist) return send(res, 404, { error: "unknown watchlist token" });
 
-      if (!sub && method === "GET") return send(res, 200, watchlist);
+      if (!sub && method === "GET") return send(res, 200, { ...watchlist, access: authz.access(req, token) });
 
       if (sub === "/agent" && method === "GET") {
         const limit = Math.min(

@@ -8,10 +8,16 @@ export function ShareBar({
   token,
   onNewLink,
   creatingLink,
+  linkHint,
+  badge,
 }: {
   token: string;
   onNewLink: () => void;
   creatingLink?: boolean;
+  /** What this link grants (from lib/access); defaults to the classic anonymous-list warning. */
+  linkHint?: string;
+  /** e.g. "read-only", "owner" — shown next to the label. */
+  badge?: string;
 }) {
   const url = shareUrlForToken(token);
   const [copied, setCopied] = useState(false);
@@ -29,8 +35,11 @@ export function ShareBar({
   return (
     <div className="share-bar-wrap">
       <div className="share-bar">
-        <span className="label">Your watchlist link</span>
-        <span className="url has-tooltip" data-tooltip={SHARE_WARNING} tabIndex={0}>
+        <span className="label">
+          Your watchlist link
+          {badge && <span className="pill access-badge">{badge}</span>}
+        </span>
+        <span className="url has-tooltip" data-tooltip={linkHint ?? SHARE_WARNING} tabIndex={0}>
           <span className="url-text">{url}</span>
         </span>
         <button type="button" className="btn small" onClick={() => void copyLink()}>
@@ -50,8 +59,9 @@ export function ShareBar({
           🔒
         </span>
         {copied
-          ? "Copied. Share this link only in private or with your AI agent — anyone who has it can view your watchlist and post notes anonymously."
-          : "Private link. Share only with people you trust or your AI agent — anyone with it can view your watchlist and post notes anonymously."}
+          ? "Copied. Share this link only in private or with your AI agent."
+          : (linkHint ??
+            "Private link. Share only with people you trust or your AI agent — anyone with it can view your watchlist and post notes anonymously.")}
       </p>
     </div>
   );

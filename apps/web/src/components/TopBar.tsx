@@ -4,9 +4,12 @@ import { useWhoami } from "../hooks/useWhoami";
 export function TopBar({
   onAddSymbol,
   addingSymbol,
+  addSymbolBlocked,
 }: {
   onAddSymbol: () => void;
   addingSymbol?: boolean;
+  /** Why adding is not allowed here (disables the button and explains on hover). */
+  addSymbolBlocked?: string;
 }) {
   const { toggleTheme, themeLabel } = useTheme();
   const { user, dashboardUrl } = useWhoami();
@@ -59,7 +62,9 @@ export function TopBar({
           type="button"
           className="btn primary small"
           onClick={onAddSymbol}
-          disabled={addingSymbol}
+          disabled={addingSymbol || Boolean(addSymbolBlocked)}
+          title={addSymbolBlocked}
+          aria-disabled={Boolean(addSymbolBlocked)}
         >
           + Add symbol
         </button>

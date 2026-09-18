@@ -63,8 +63,17 @@ interface AuthzResponse {
   link_access?: 'public-edit' | 'public-comment' | 'public-view' | 'private';
   user?: { handle: string };
   reason?: 'sign_in_required' | 'forbidden';   // when allow = false
+  grants?: ('view' | 'add_symbol' | 'post_note' | 'manage')[];  // optional, see below
 }
 ```
+
+- `grants` (optional, additive in v1) lists **every** list action this
+  caller may perform on this list — the union of what their role and the
+  link grant. The public API passes it through on `GET /api/w/:token` as
+  `access.can` so the web app can grey out "Add symbol" or the note box up
+  front and say why, instead of discovering 401/403s one action at a time.
+  When absent, the public API derives it from `link_access` alone (the
+  anonymous view of the list).
 
 - `link_access` is what the bare share link grants to non-members. It is
   cached by the public API for 60 s per token (see below), so return it on

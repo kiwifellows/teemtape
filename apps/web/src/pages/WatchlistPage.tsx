@@ -1,4 +1,4 @@
-import { ApiError, type Quote, type SymbolEntry } from "@teemtape/api-client";
+import { ApiError, type Quote, type SymbolEntry, type WatchlistAccess } from "@teemtape/api-client";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
@@ -8,7 +8,9 @@ import { ShareBar } from "../components/ShareBar";
 import { SymbolSearch } from "../components/SymbolSearch";
 import { TopBar } from "../components/TopBar";
 import { WatchlistTable } from "../components/WatchlistTable";
+import { getDashboardUrl } from "../config";
 import { useApiForToken } from "../context/ApiContext";
+import { deniedActionMessage, describeAccess } from "../lib/access";
 
 async function fetchNoteCounts(
   client: ReturnType<typeof useApiForToken>,
@@ -37,6 +39,7 @@ export function WatchlistPage({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [denied, setDenied] = useState<ApiError | null>(null);
+  const [access, setAccess] = useState<WatchlistAccess | undefined>(undefined);
   const [noteSymbol, setNoteSymbol] = useState<string | null>(null);
   const [addingSymbol, setAddingSymbol] = useState(false);
   const [creatingLink, setCreatingLink] = useState(false);
@@ -48,6 +51,7 @@ export function WatchlistPage({ token }: { token: string }) {
     try {
       const watchlist = await client.getWatchlist();
       setSymbols(watchlist.symbols);
+      setAccess(watchlist.access);
 
       if (watchlist.symbols.length === 0) {
         setQuotes([]);
@@ -84,6 +88,12 @@ export function WatchlistPage({ token }: { token: string }) {
       setQuotes(quotesRes.quotes);
       setNoteCounts((prev) => ({ ...prev, [entry.ticker]: prev[entry.ticker] ?? 0 }));
     } catch (err) {
+      if (err instanceof ApiError && err.accessDenied) {
+        // Our view of the permissions was stale; say so and re-read them.
+        setError(deniedActionMessage("add_symbol", Boolean(access?.user)));
+        void refresh();
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to add symbol");
     } finally {
       setAddingSymbol(false);
@@ -115,23 +125,53 @@ export function WatchlistPage({ token }: { token: string }) {
     }
   };
 
+  const copy = describeAccess(access, getDashboardUrl());
+  const signInUrl = getDashboardUrl();
+
   return (
     <div className="app">
-      <TopBar onAddSymbol={focusSearch} addingSymbol={addingSymbol} />
+      <TopBar
+        onAddSymbol={focusSearch}
+        addingSymbol={addingSymbol}
+        addSymbolBlocked={loading ? undefined : copy.addSymbol}
+      />
 
       {denied ? (
         <PrivateWatchlist error={denied} />
       ) : (
-        <ShareBar token={token} onNewLink={() => void createNewLink()} creatingLink={creatingLink} />
+        <ShareBar
+          token={token}
+          onNewLink={() => void createNewLink()}
+          creatingLink={creatingLink}
+          linkHint={copy.linkHint}
+          badge={copy.badge}
+        />
       )}
 
       {loading && <div className="status-banner loading">Loading watchlist…</div>}
       {!loading && error && <div className="status-banner error">{error}</div>}
+      {!loading && !denied && copy.summary && (
+        <div className="status-banner access" role="status">
+          <span className="lock" aria-hidden="true">🔒</span> {copy.summary}
+          {copy.offerSignIn && signInUrl && (
+            <>
+              {" "}
+              <a href={signInUrl}>Sign in</a> if you've been invited.
+            </>
+          )}
+        </div>
+      )}
 
       {!denied && (
         <div className="toolbar">
           <h2 style={{ fontSize: 16 }}>Watchlist</h2>
-          <SymbolSearch onSelect={(entry) => void addSymbol(entry)} />
+          {loading || !copy.addSymbol ? (
+            <SymbolSearch onSelect={(entry) => void addSymbol(entry)} />
+          ) : (
+            <span className="faint access-reason" title={copy.addSymbol}>
+              Adding symbols is off for you here.
+            </span>
+          )}
         </div>
       )}
 
@@ -151,6 +191,10 @@ export function WatchlistPage({ token }: { token: string }) {
           symbol={noteSymbol}
           onClose={() => setNoteSymbol(null)}
           onNotePosted={() => void refreshNoteCount(noteSymbol)}
+          postBlocked={copy.postNote}
+          offerSignIn={copy.offerSignIn ? signInUrl : undefined}
+          signedIn={Boolean(access?.user)}
+          onAccessChanged={() => void refresh()}
         />
       )}
     </div>

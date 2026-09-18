@@ -1,7 +1,8 @@
-import type { Note } from "@teemtape/api-client";
+import { ApiError, type Note } from "@teemtape/api-client";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useApiForToken } from "../context/ApiContext";
 import { useHandle } from "../hooks/useHandle";
+import { deniedActionMessage } from "../lib/access";
 import { fmtRelativeTime } from "../lib/format";
 import { HandleDialog } from "./HandleDialog";
 
@@ -10,11 +11,22 @@ export function NotePopup({
   symbol,
   onClose,
   onNotePosted,
+  postBlocked,
+  offerSignIn,
+  signedIn,
+  onAccessChanged,
 }: {
   token: string;
   symbol: string;
   onClose: () => void;
   onNotePosted: () => void;
+  /** Why posting is not allowed here; replaces the compose box with the reason. */
+  postBlocked?: string;
+  /** Sign-in URL to offer alongside the reason (anonymous viewer, Pro app configured). */
+  offerSignIn?: string;
+  signedIn?: boolean;
+  /** Called when a post is refused by the API so the page can re-read permissions. */
+  onAccessChanged?: () => void;
 }) {
   const client = useApiForToken(token);
   const { handle, setHandle } = useHandle();
@@ -47,8 +59,8 @@ export function NotePopup({
   }, [loadNotes]);
 
   useEffect(() => {
-    textareaRef.current?.focus();
-  }, [symbol]);
+    if (!postBlocked) textareaRef.current?.focus();
+  }, [symbol, postBlocked]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -71,12 +83,17 @@ export function NotePopup({
         setBody("");
         onNotePosted();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to post note");
+        if (err instanceof ApiError && err.accessDenied) {
+          setError(deniedActionMessage("post_note", Boolean(signedIn)));
+          onAccessChanged?.();
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to post note");
+        }
       } finally {
         setPosting(false);
       }
     },
-    [body, client, onNotePosted, posting, symbol],
+    [body, client, onAccessChanged, onNotePosted, posting, signedIn, symbol],
   );
 
   const postNote = () => {
@@ -148,6 +165,18 @@ export function NotePopup({
             ))}
         </div>
 
+        {postBlocked ? (
+          <div className="popup-compose compose-blocked" role="status">
+            <span className="lock" aria-hidden="true">🔒</span>{" "}
+            {postBlocked}
+            {offerSignIn && (
+              <>
+                {" "}
+                <a href={offerSignIn}>Sign in</a> if you've been invited.
+              </>
+            )}
+          </div>
+        ) : (
         <div className="popup-compose">
           <label className="sr-only" htmlFor={`note-body-${symbol}`}>
             Add a note about {symbol}
@@ -196,6 +225,7 @@ export function NotePopup({
             </button>
           </div>
         </div>
+        )}
       </div>
 
       {showHandleDialog && (

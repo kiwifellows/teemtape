@@ -20,6 +20,7 @@ interface ListState {
   members: Record<string, Role>;
   delayMs?: number;
   fail?: boolean;
+  omitGrants?: boolean;
 }
 
 const ROLE_GRANTS: Record<Role, string[]> = {
@@ -64,6 +65,7 @@ export async function authzStub(request: Request): Promise<Response> {
       members: (body.members as Record<string, Role>) ?? {},
       delayMs: body.delayMs as number | undefined,
       fail: body.fail as boolean | undefined,
+      omitGrants: body.omitGrants as boolean | undefined,
     });
     return json({ ok: true });
   }
@@ -89,9 +91,16 @@ export async function authzStub(request: Request): Promise<Response> {
 
   const role = handle ? state.members[handle] : undefined;
   const user = handle ? { handle } : undefined;
+  // `grants` is the additive contract field (union of role + link); the
+  // `omitGrants` list state lets a test cover authorisers that predate it.
+  const grants = state.omitGrants
+    ? undefined
+    : ["view", "add_symbol", "post_note", "manage"].filter(
+        (a) => (role ? ROLE_GRANTS[role].includes(a) : false) || LINK_GRANTS[state.link_access].includes(a),
+      );
   if (role) {
     const allow = ROLE_GRANTS[role].includes(action);
-    return json({ allow, role, link_access: state.link_access, user, reason: allow ? undefined : "forbidden" });
+    return json({ allow, role, link_access: state.link_access, user, grants, reason: allow ? undefined : "forbidden" });
   }
   const allow = LINK_GRANTS[state.link_access].includes(action);
   return json({
@@ -99,6 +108,7 @@ export async function authzStub(request: Request): Promise<Response> {
     role: "anonymous",
     link_access: state.link_access,
     user,
+    grants,
     reason: allow ? undefined : handle ? "forbidden" : "sign_in_required",
   });
 }
