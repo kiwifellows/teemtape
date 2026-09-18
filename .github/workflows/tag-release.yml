@@ -158,6 +158,27 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: bash scripts/npm-publish.sh
 
+      - name: Notify teemtape-pro of the release
+        # The private Pro repo listens for this (repository_dispatch
+        # "teemtape-released") and re-runs its tests against the new client.
+        # Needs PRO_DISPATCH_TOKEN: a fine-grained PAT for kiwifellows/teemtape-pro
+        # with Actions: read & write. Skipped silently when it is not set.
+        if: ${{ steps.version.outputs.release == 'true' }}
+        env:
+          PRO_DISPATCH_TOKEN: ${{ secrets.PRO_DISPATCH_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PRO_DISPATCH_TOKEN" ]; then
+            echo "PRO_DISPATCH_TOKEN not set — skipping teemtape-pro notification."
+            exit 0
+          fi
+          curl -sS -f -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $PRO_DISPATCH_TOKEN" \
+            https://api.github.com/repos/kiwifellows/teemtape-pro/dispatches \
+            -d "{\"event_type\":\"teemtape-released\",\"client_payload\":{\"version\":\"$VERSION\"}}"
+
       - name: Summary
         if: ${{ steps.version.outputs.release == 'true' }}
         run: |

@@ -45,6 +45,10 @@ jobs:
       - name: Build web app
         run: npm run build --workspace @teemtape/web
         working-directory: .
+        env:
+          # teemtape Pro (accounts). Shows sign-in state in the top bar and
+          # links the private-list panel to the app. Unset → anonymous UI only.
+          VITE_DASHBOARD_URL: https://app.teemtape.com
 
       - name: Deploy to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v3
