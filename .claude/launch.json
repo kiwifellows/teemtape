@@ -1,0 +1,34 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mock-api",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "MOCK_PRIVATE_TOKENS=6f1ed002ab5595859014ebf0951522d9",
+        "MOCK_SIGN_IN_URL=http://localhost:5174",
+        "node",
+        "packages/mock-server/src/index.mjs"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "VITE_API_URL=http://localhost:8787",
+        "VITE_DASHBOARD_URL=http://localhost:5174",
+        "npm",
+        "run",
+        "dev",
+        "--workspace",
+        "@teemtape/web",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    }
+  ]
+}
