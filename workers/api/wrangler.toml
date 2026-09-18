@@ -79,6 +79,9 @@ WEB_URL = "https://www.teemtape.com"
 SEC_USER_AGENT = "teemtape-api symbols-sync contact@teemtape.com"
 CORS_ORIGINS = "https://teemtape.com,https://www.teemtape.com"
 DASHBOARD_URL = "https://app.teemtape.com"
+# Budget for one AUTHZ call, including the Pro Worker's cold start. Public
+# lists fail open on timeout; restricted ones answer 503, so be generous.
+AUTHZ_TIMEOUT_MS = "1000"
 
 [env.production.triggers]
 crons = ["0 */12 * * *"]
