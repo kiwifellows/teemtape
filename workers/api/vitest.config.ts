@@ -19,6 +19,9 @@ export default defineConfig(async () => {
         TEST_MIGRATIONS: migrations,
         TEST_RATE_LIMIT,
         QUOTES_PROVIDER: "sample",
+        // The catalog is normally held in memory for an hour; re-read KV on
+        // every request so each test sees exactly what it seeded.
+        SYMBOLS_CATALOG_REFRESH_SECONDS: "0",
         DASHBOARD_URL: "https://app.test",
         CORS_ORIGINS: "https://web.test",
       },

@@ -173,6 +173,9 @@ from Yahoo Finance.
 In production this is the **Sync symbols catalog** GitHub workflow: it runs
 on the 1st and 15th of each month and can be started by hand with a custom
 market list (or as a dry run that only uploads the NDJSON/SQL artifacts).
+After importing, it publishes the table as a compact JSON snapshot to KV; the
+Worker serves `GET /api/symbols` from that snapshot in memory and edge-caches
+responses for an hour, so a fresh catalog is fully visible within ~2 hours.
 
 Locally:
 

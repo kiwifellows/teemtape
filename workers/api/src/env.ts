@@ -4,8 +4,9 @@ export interface Env {
   DB: D1Database;
   /**
    * KV namespace holding the shared quote cache (keys `quote:v2:{symbol}`,
-   * TTL = QUOTE_CACHE_TTL_SECONDS) and the short-lived authz link cache
-   * (`authz:v1:{token}`, see authz.ts).
+   * TTL = QUOTE_CACHE_TTL_SECONDS), the short-lived authz link cache
+   * (`authz:v1:{token}`, see authz.ts) and the symbols catalog snapshot
+   * (`symbols:catalog:v1`, written by the sync workflow, see catalog.ts).
    */
   QUOTES_CACHE: KVNamespace;
   /**
@@ -38,6 +39,11 @@ export interface Env {
    * Set via `wrangler secret put API_KEY` — never commit the value.
    */
   API_KEY?: string;
+  /**
+   * How long an isolate keeps its in-memory symbols catalog before re-reading
+   * the KV snapshot (string in vars). Default 3600. 0 = re-read every request.
+   */
+  SYMBOLS_CATALOG_REFRESH_SECONDS?: string;
   /** Web app base URL, used to build share links. */
   WEB_URL?: string;
 

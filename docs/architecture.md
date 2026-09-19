@@ -117,12 +117,21 @@ suffix elsewhere (`FPH.NZ`, `BHP.AX`, `0700.HK`) — with `base`, `suffix`,
 suffix is part of the identity and search returns every listing a bare code
 matches, exact-base first.
 
-The Worker only **reads** this table. It is filled out-of-band by
+The Worker never **writes** this table. It is filled out-of-band by
 `packages/symbols-sync` (exchange listings → `teemtape.symbol.v1` NDJSON →
 idempotent SQL → `wrangler d1 execute`), run fortnightly or on demand by
 `.github/workflows/sync-symbols.yml`. Sources are the exchanges' and the
 SEC's own public listing files; Yahoo is never a catalog source. Full detail:
 [`docs/plans/multi-market.md`](plans/multi-market.md).
+
+Nor does the Worker normally **read** it: substring search over the table is
+two full scans per keystroke, so the same workflow publishes the imported
+table as a `teemtape.catalog.v1` snapshot (~1 MB JSON, ~235 KB gzipped, KV key
+`symbols:catalog:v1`). `workers/api/src/catalog.ts` parses it once per isolate,
+re-reads it hourly, and answers `GET /api/symbols` from memory in well under a
+millisecond; responses are edge-cached for an hour. The D1 query in
+`symbols.ts` is the fallback until the first sync run and the reference for the
+search semantics — the test suite runs both backends against the same cases.
 
 ## Share links (anonymous MD5 token)
 

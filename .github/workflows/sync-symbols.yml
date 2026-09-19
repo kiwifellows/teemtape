@@ -12,6 +12,10 @@ name: Sync symbols catalog
 # to exhaust the account's free-tier daily write budget in one run, which
 # breaks every other D1 write on the account (teemtape Pro sign-in, Stripe
 # webhooks) until midnight UTC. That happened on 2026-09-19.
+#
+# After the import the table is exported once more and published as the
+# `teemtape.catalog.v1` snapshot (one KV key, ~1 MB / ~230 KB gzipped) that
+# the Worker serves /api/symbols from in memory — D1 is never read for search.
 
 on:
   schedule:
@@ -23,7 +27,7 @@ on:
         required: false
         default: "US,NZX,ASX,NSE"
       dry_run:
-        description: "Build the NDJSON + SQL and upload them, but do not touch D1"
+        description: "Build the NDJSON, SQL and snapshot and upload them, but do not touch D1 or KV"
         type: boolean
         default: false
 
@@ -89,13 +93,6 @@ jobs:
             echo "No symbol changes since the last import — nothing to write."
           fi
 
-      - name: Upload normalised artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: symbols-${{ github.run_id }}
-          path: out/
-          retention-days: 30
-
       - name: Import into production D1
         if: ${{ github.event.inputs.dry_run != 'true' && steps.render.outputs.changed == 'true' }}
         uses: cloudflare/wrangler-action@v3
@@ -105,3 +102,47 @@ jobs:
           workingDirectory: workers/api
           environment: production
           command: d1 execute teemtape-db --remote --yes --env production --file ../../out/symbols.sql
+
+      # The snapshot must be exactly what the table holds, so it is rendered
+      # from a fresh export when rows were written, and from the export taken
+      # before the (empty) diff otherwise.
+      - name: Export the imported table
+        if: ${{ github.event.inputs.dry_run != 'true' && steps.render.outputs.changed == 'true' }}
+        working-directory: workers/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute teemtape-db --remote --env production --json \
+            --command "SELECT ticker, base, suffix, exchange_code, mic, currency, country, title, isin, cik_str, source FROM symbols" \
+            > ../../out/after.json
+
+      - name: Render the teemtape.catalog.v1 snapshot
+        run: |
+          set -euo pipefail
+          src=out/current.json
+          [ -f out/after.json ] && src=out/after.json
+          node packages/symbols-sync/dist/cli.js snapshot "$src" --out out/catalog.json
+          gzip -9 -k out/catalog.json
+          ls -l out/catalog.json out/catalog.json.gz
+
+      - name: Upload normalised artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: symbols-${{ github.run_id }}
+          path: out/
+          retention-days: 30
+
+      # One KV write a fortnight. The Worker re-reads the key at most hourly
+      # per isolate and edge-caches /api/symbols for an hour, so a new
+      # catalog is fully live within ~2 hours of this step.
+      - name: Publish the snapshot to KV
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/api
+          environment: production
+          command: kv key put symbols:catalog:v1 --path ../../out/catalog.json --binding QUOTES_CACHE --env production --remote

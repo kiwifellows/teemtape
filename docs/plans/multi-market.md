@@ -99,6 +99,9 @@ wrangler d1 execute teemtape-db --remote --json \
 teemtape-symbols import out/*.ndjson --sql out/symbols.sql --current out/current.json
                                                               # validate, dedupe, render a DIFF: only changed rows written
 wrangler d1 execute teemtape-db --remote --file out/symbols.sql
+wrangler d1 execute … --json --command "SELECT …" > out/after.json  # the table as imported
+teemtape-symbols snapshot out/after.json --out out/catalog.json     # teemtape.catalog.v1 serving snapshot
+wrangler kv key put symbols:catalog:v1 --path out/catalog.json --binding QUOTES_CACHE --remote
 ```
 
 - Lives in `packages/symbols-sync` (`@teemtape/symbols-sync`, private
@@ -131,16 +134,32 @@ wrangler d1 execute teemtape-db --remote --file out/symbols.sql
   `base, suffix, exchange_code, mic, currency, country, isin, cik_str (now
   nullable), source`. Existing US rows are kept with placeholder venue
   `XXXX` until the first pipeline run overwrites them.
-- **Artifacts:** the NDJSON and SQL are uploaded as a 30-day GitHub Actions
-  artifact on every run — the "normalised artifact" of the research, without
-  paying for R2 until there is a reason to.
+- **Serving snapshot (`teemtape.catalog.v1`):** searching D1 with
+  `LIKE '%q%'` scans the whole table twice per keystroke (~40k rows read
+  per search on today's 14.7k listings — a few hundred searches a day is
+  the Free plan's 5M-row read budget). So after each import the workflow
+  exports the table once more and renders it as one JSON document of
+  ticker-sorted column tuples `[ticker, exchange, mic, title, isin, cikStr]`
+  (base/suffix/currency/country are derived from the ticker via the
+  registry): **930 KB raw, ~235 KB gzipped for 14 740 rows**, parsed in
+  ~6 ms. It is written to KV key `symbols:catalog:v1` (one KV write a
+  fortnight); the Worker (`workers/api/src/catalog.ts`) loads it into memory
+  once per isolate, re-reads it hourly, and answers `/api/symbols` from
+  there with a one-hour edge cache — D1 is never read for search once the
+  key exists, and is the fallback until it does. Adding SGX/HKEX/Tokyo/LSE
+  should land around 24k rows / ~370 KB gzipped, still well within KV's
+  25 MB value limit and the Worker's memory.
+- **Artifacts:** the NDJSON, SQL and snapshot (plus a `.gz` copy for size
+  checks) are uploaded as a 30-day GitHub Actions artifact on every run —
+  the "normalised artifact" of the research, without paying for R2 until
+  there is a reason to.
 
 ### Cadence: fortnightly or on demand — no always-on job
 
 Listings change slowly, so `.github/workflows/sync-symbols.yml` runs on the
 **1st and 15th of each month (03:00 UTC)** and via **Run workflow** with a
 `markets` input (default `US,NZX,ASX,NSE`) and a `dry_run` switch that builds
-and uploads the artifacts without touching D1. Uses the existing
+and uploads the artifacts without touching D1 or KV. Uses the existing
 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` secrets. Locally:
 
 ```bash
