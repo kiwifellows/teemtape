@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { ADAPTERS, dedupe, parseCsv, parseNdjson, toImportSql, toNdjson, validateRecord } from "../dist/index.js";
+import { ADAPTERS, dedupe, parseCsv, parseNdjson, planImport, toImportSql, toNdjson, validateRecord } from "../dist/index.js";
 
 const SYNCED_AT = "2026-09-19T00:00:00.000Z";
 const fixture = (name) => readFile(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
@@ -170,4 +170,62 @@ test("cli: fetch --from fixture → ndjson → import → sql, and refuses cross
   const unknown = run("fetch", "--market", "MARS", "--out", path.join(dir, "m.ndjson"));
   assert.equal(unknown.status, 1);
   assert.match(unknown.stderr, /no adapter for market MARS/);
+});
+
+test("toImportSql --current: only changed rows are written, vanished tickers are deleted, other markets untouched", async () => {
+  const asx = ADAPTERS.get("ASX").parse(await fixture("asx.csv"), SYNCED_AT);
+  const nzx = ADAPTERS.get("NZX").parse(await fixture("nzx.html"), SYNCED_AT);
+  const feed = [...asx, ...nzx];
+  const asRow = (r) => ({
+    ticker: r.symbol, base: r.base, suffix: r.suffix, exchange_code: r.exchangeCode, mic: r.mic,
+    currency: r.currency, country: r.country, title: r.name, isin: r.isin, cik_str: r.cik, source: r.source,
+  });
+  // Live table: every feed row already present (one with a stale name), one
+  // delisted ASX ticker, one US row that must never be touched by an AX+NZ import.
+  const current = [
+    ...feed.map(asRow).map((r) => (r.ticker === "OBI.AX" ? { ...r, title: "OLD NAME" } : r)),
+    { ...asRow(asx[0]), ticker: "GONE.AX", base: "GONE" },
+    { ticker: "AAPL", base: "AAPL", suffix: "", exchange_code: "NASDAQ", mic: "XNAS", currency: "USD", country: "US", title: "Apple Inc.", isin: null, cik_str: 320193, source: "sec" },
+  ];
+
+  const plan = planImport(feed, { syncedAt: SYNCED_AT, current });
+  assert.deepEqual(plan.upserts.map((r) => r.symbol), ["OBI.AX"]);
+  assert.deepEqual(plan.deletes, ["GONE.AX"]);
+  assert.equal(plan.unchanged, feed.length - 1);
+  assert.equal(plan.cleanupBySyncedAt, false);
+
+  const sql = toImportSql(feed, { syncedAt: SYNCED_AT, current });
+  assert.match(sql, /diff: 1 upsert, 1 delete, 5 unchanged/);
+  assert.equal((sql.match(/INSERT INTO symbols/g) ?? []).length, 1);
+  assert.match(sql, /'OBI\.AX'/);
+  assert.match(sql, /DELETE FROM symbols WHERE ticker IN \('GONE\.AX'\);/);
+  assert.doesNotMatch(sql, /synced_at </); // no blanket cleanup in diff mode
+  assert.doesNotMatch(sql, /AAPL/);
+
+  // Nothing changed → nothing but the header.
+  const quiet = toImportSql(feed, { syncedAt: SYNCED_AT, current: feed.map(asRow) });
+  assert.match(quiet, /diff: 0 upsert, 0 delete, 6 unchanged/);
+  assert.doesNotMatch(quiet, /INSERT|DELETE/);
+
+  // A row missing from the live table is an upsert (new listing).
+  const fresh = planImport(feed, { syncedAt: SYNCED_AT, current: feed.slice(1).map(asRow) });
+  assert.deepEqual(fresh.upserts.map((r) => r.symbol), [feed[0].symbol]);
+});
+
+test("cli import --current accepts wrangler's --json envelope", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "symbols-diff-"));
+  const asx = ADAPTERS.get("ASX").parse(await fixture("asx.csv"), SYNCED_AT);
+  await writeFile(path.join(dir, "asx.ndjson"), toNdjson(asx));
+  const envelope = [{ results: asx.map((r) => ({
+    ticker: r.symbol, base: r.base, suffix: r.suffix, exchange_code: r.exchangeCode, mic: r.mic,
+    currency: r.currency, country: r.country, title: r.name, isin: r.isin, cik_str: r.cik, source: r.source,
+  })), success: true, meta: {} }];
+  await writeFile(path.join(dir, "current.json"), JSON.stringify(envelope));
+  const res = spawnSync(process.execPath, [
+    new URL("../dist/cli.js", import.meta.url).pathname,
+    "import", path.join(dir, "asx.ndjson"), "--sql", path.join(dir, "out.sql"), "--current", path.join(dir, "current.json"), "--synced-at", SYNCED_AT,
+  ], { encoding: "utf8" });
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stderr, /0 to upsert, 0 to delete, \d+ unchanged/);
+  assert.doesNotMatch(await readFile(path.join(dir, "out.sql"), "utf8"), /INSERT|DELETE/);
 });

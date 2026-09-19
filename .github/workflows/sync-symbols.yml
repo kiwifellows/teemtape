@@ -5,6 +5,13 @@ name: Sync symbols catalog
 # this runs on the 1st and 15th of each month, or by hand from the Actions
 # tab with a custom market list. No quotes are fetched here and nothing comes
 # from Yahoo: docs/plans/multi-market.md.
+#
+# The import is a DIFF against the live table: the current rows are exported
+# first and only new/changed symbols are written, only delisted ones deleted.
+# A full rewrite is ~3 D1 row-writes per symbol (indexes included) — enough
+# to exhaust the account's free-tier daily write budget in one run, which
+# breaks every other D1 write on the account (teemtape Pro sign-in, Stripe
+# webhooks) until midnight UTC. That happened on 2026-09-19.
 
 on:
   schedule:
@@ -58,8 +65,29 @@ jobs:
             node packages/symbols-sync/dist/cli.js fetch --market "$market" --out "out/${market}.ndjson"
           done
 
-      - name: Validate + render import SQL
-        run: node packages/symbols-sync/dist/cli.js import out/*.ndjson --sql out/symbols.sql
+      - name: Export the live symbols table (reads are cheap; this makes the import a diff)
+        working-directory: workers/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute teemtape-db --remote --env production --json \
+            --command "SELECT ticker, base, suffix, exchange_code, mic, currency, country, title, isin, cik_str, source FROM symbols" \
+            > ../../out/current.json
+          node -e 'const d=JSON.parse(require("fs").readFileSync("../../out/current.json","utf8")); console.log(`live rows: ${d[0].results.length}`)'
+
+      - name: Validate + render import SQL (diff)
+        id: render
+        run: |
+          set -euo pipefail
+          node packages/symbols-sync/dist/cli.js import out/*.ndjson --sql out/symbols.sql --current out/current.json
+          if grep -qE '^(INSERT|DELETE) ' out/symbols.sql; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No symbol changes since the last import — nothing to write."
+          fi
 
       - name: Upload normalised artifacts
         uses: actions/upload-artifact@v4
@@ -69,7 +97,7 @@ jobs:
           retention-days: 30
 
       - name: Import into production D1
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: ${{ github.event.inputs.dry_run != 'true' && steps.render.outputs.changed == 'true' }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

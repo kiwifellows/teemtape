@@ -93,7 +93,11 @@ Each adapter carries its `sourceUrl` and a one-line `licence` note in code;
 
 ```
 teemtape-symbols fetch --market NZX --out out/NZX.ndjson     # exchange listing → teemtape.symbol.v1
-teemtape-symbols import out/*.ndjson --sql out/symbols.sql   # validate, dedupe, render idempotent SQL
+wrangler d1 execute teemtape-db --remote --json \
+  --command "SELECT ticker, base, suffix, exchange_code, mic, currency, country, title, isin, cik_str, source FROM symbols" \
+  > out/current.json                                           # what D1 holds now (reads are cheap)
+teemtape-symbols import out/*.ndjson --sql out/symbols.sql --current out/current.json
+                                                              # validate, dedupe, render a DIFF: only changed rows written
 wrangler d1 execute teemtape-db --remote --file out/symbols.sql
 ```
 
@@ -142,7 +146,7 @@ and uploads the artifacts without touching D1. Uses the existing
 ```bash
 npm run build --workspace @teemtape/symbols-sync
 node packages/symbols-sync/dist/cli.js fetch --market NZX --out out/NZX.ndjson
-node packages/symbols-sync/dist/cli.js import out/*.ndjson --sql out/symbols.sql
+node packages/symbols-sync/dist/cli.js import out/*.ndjson --sql out/symbols.sql   # full rewrite is fine locally
 cd workers/api && npx wrangler d1 execute teemtape-db --local --file ../../out/symbols.sql
 ```
 
