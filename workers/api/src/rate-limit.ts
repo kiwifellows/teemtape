@@ -1,50 +1,40 @@
 import type { Env } from "./env.js";
 import { HttpError } from "./http.js";
 
-const WINDOW_SECONDS = 60;
-const DEFAULT_RPM = 60;
-
-function getRPM(env: Env): number {
-  const n = Number(env.RATE_LIMIT_RPM ?? DEFAULT_RPM);
-  return Number.isFinite(n) && n > 0 ? n : 0; // 0 means disabled
-}
+/** Must match `simple.period` of the RATE_LIMITER binding in wrangler.toml. */
+const PERIOD_SECONDS = 60;
 
 /**
- * KV-backed sliding-window rate limiter keyed by client IP.
+ * Per-IP rate limit via the Workers Rate Limiting binding.
  *
- * Uses a 1-minute tumbling window. The counter is stored in QUOTES_CACHE under
- * the key `rl:{ip}:{window}` with a 2-minute TTL so adjacent windows overlap
- * cleanly. Cloudflare populates `cf-connecting-ip` with the true client IP even
+ * The limit itself (requests per period) is declared on the binding in
+ * wrangler.toml, not here. The binding keeps its counters in memory at the
+ * edge, so a request costs no KV operations — the previous KV counter did a
+ * read *and* a write per request, which on the Free plan (1,000 KV writes a
+ * day, shared with teemtape-pro) took the whole API down after ~1,000 calls.
+ *
+ * Cloudflare populates `cf-connecting-ip` with the true client IP even
  * behind proxies, so that header is preferred over `x-forwarded-for`.
  *
- * Set RATE_LIMIT_RPM=0 to disable entirely (e.g. for local dev).
+ * Leave the binding out (e.g. a scratch config) to disable limiting entirely.
  * Throws HttpError(429) with a `retry-after` header when the limit is exceeded.
  */
 export async function checkRateLimit(request: Request, env: Env): Promise<void> {
-  const rpm = getRPM(env);
-  if (!rpm) return;
+  if (!env.RATE_LIMITER) return;
 
   const ip =
     request.headers.get("cf-connecting-ip") ??
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     "unknown";
 
-  const window = Math.floor(Date.now() / (WINDOW_SECONDS * 1000));
-  const key = `rl:${ip}:${window}`;
-
-  const raw = await env.QUOTES_CACHE.get(key);
-  const count = raw ? parseInt(raw, 10) : 0;
-
-  if (count >= rpm) {
-    const retryAfter = WINDOW_SECONDS - (Math.floor(Date.now() / 1000) % WINDOW_SECONDS);
-    throw new HttpError(429, `rate limit exceeded — max ${rpm} requests per minute`, {
-      "retry-after": String(retryAfter),
+  const { success } = await env.RATE_LIMITER.limit({ key: ip });
+  if (!success) {
+    // The binding does not expose where we are in the window; the period is
+    // the longest a well-behaved client ever has to wait.
+    throw new HttpError(429, "rate limit exceeded — too many requests per minute", {
+      "retry-after": String(PERIOD_SECONDS),
     });
   }
-
-  await env.QUOTES_CACHE.put(key, String(count + 1), {
-    expirationTtl: WINDOW_SECONDS * 2,
-  });
 }
 
 /**

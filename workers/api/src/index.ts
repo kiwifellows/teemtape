@@ -40,6 +40,34 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
+/**
+ * Quotes are served through the edge Cache API for the delay window. Quotes
+ * are already ~QUOTE_DELAY_SECONDS stale by design, so a same-length response
+ * cache is invisible to callers, while every hit skips the Worker's KV reads
+ * and upstream fetches entirely (Cache API operations are free). The
+ * `cache-control` header also lets browsers and polling agents reuse the
+ * body without a round trip. Keyed on the normalised symbol list so
+ * `aapl,msft` and `AAPL,MSFT` share one entry.
+ */
+async function quotesResponse(env: Env, ctx: ExecutionContext, url: URL, symbols: string[]): Promise<Response> {
+  const maxAge = Number(env.QUOTE_DELAY_SECONDS ?? "60");
+  const cacheable = Number.isFinite(maxAge) && maxAge > 0;
+  const key = new Request(`${url.origin}/api/quotes?symbols=${symbols.join(",")}`);
+
+  if (cacheable) {
+    const hit = await caches.default.match(key);
+    if (hit) return hit;
+  }
+
+  const response = json(
+    await getQuotes(env, symbols),
+    200,
+    cacheable ? { "cache-control": `public, max-age=${maxAge}` } : { "cache-control": "no-store" },
+  );
+  if (cacheable) ctx.waitUntil(caches.default.put(key, response.clone()));
+  return response;
+}
+
 async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -62,7 +90,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   // GET /api/quotes?symbols=AAPL,MSFT
   if (path === "/api/quotes" && method === "GET") {
     const symbols = parseSymbolList(url.searchParams.get("symbols"));
-    return json(await getQuotes(env, symbols));
+    return quotesResponse(env, ctx, url, symbols);
   }
 
   // GET /api/symbols?offset=0&limit=100&sort=ticker|title&q=&symbol=&name=&exchange=

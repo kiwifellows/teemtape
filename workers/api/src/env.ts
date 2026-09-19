@@ -3,11 +3,17 @@ export interface Env {
   /** D1 database for watchlists + notes. */
   DB: D1Database;
   /**
-   * KV namespace for two purposes:
-   *  1. Quote cache: keys prefixed `quote:v2:{symbol}`, TTL = QUOTE_CACHE_TTL_SECONDS.
-   *  2. Rate-limit counters: keys prefixed `rl:{ip}:{window}`, TTL = 120s.
+   * KV namespace holding the shared quote cache (keys `quote:v2:{symbol}`,
+   * TTL = QUOTE_CACHE_TTL_SECONDS) and the short-lived authz link cache
+   * (`authz:v1:{token}`, see authz.ts).
    */
   QUOTES_CACHE: KVNamespace;
+  /**
+   * Workers Rate Limiting binding (`[[ratelimits]]` in wrangler.toml), keyed
+   * by client IP. The limit and period live on the binding. Optional: leave
+   * it out to disable rate limiting.
+   */
+  RATE_LIMITER?: RateLimit;
 
   /**
    * Ordered, comma-separated list of quote providers to try.
@@ -25,11 +31,6 @@ export interface Env {
    * Minimum 60 (KV floor). Default 300 (5 minutes).
    */
   QUOTE_CACHE_TTL_SECONDS?: string;
-  /**
-   * Max requests per minute per client IP (string in vars). 0 = disabled.
-   * Enforced by a KV-backed sliding window. Default 60.
-   */
-  RATE_LIMIT_RPM?: string;
   /**
    * Optional static API key for request authentication.
    * When set, every API request (except /health) must include the header:

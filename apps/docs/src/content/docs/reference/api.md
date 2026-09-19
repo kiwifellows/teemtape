@@ -156,8 +156,10 @@ Controlled by the `QUOTES_PROVIDER` variable on the Worker:
   the `POLYGON_API_KEY` secret; falls back to sample data per-symbol if a fetch
   fails.
 
-Quotes are cached in KV for the delay window (`QUOTE_DELAY_SECONDS`, minimum 60s)
-to respect free-tier rate limits.
+Quotes are cached in KV (`QUOTE_CACHE_TTL_SECONDS`, default 5 min, shared by
+every caller) to respect free-tier rate limits, and finished responses are held
+in the edge Cache API for the delay window (`QUOTE_DELAY_SECONDS`, served with
+`cache-control: public, max-age=<delay>`).
 
 ## Symbols catalog sync
 

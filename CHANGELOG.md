@@ -1,5 +1,7 @@
 ## Unreleased
 
+- perf: rate limiting moved from a KV counter to the Workers Rate Limiting binding (`RATE_LIMITER`; `RATE_LIMIT_RPM` var removed, the limit is on the binding) — no KV operations per request. `GET /api/quotes` is now served through the edge Cache API for the delay window with `cache-control: public, max-age=<delay>`, and the KV lookup is one bulk read per request instead of one per symbol. (@kiwifellows)
+
 - feat: multi-market symbols — canonical `BASE.SUFFIX` IDs (NZX, ASX, SGX, HKEX, Tokyo, LSE, EU, India), a market registry in `@teemtape/api-client`, `EXCHANGE:TICKER` aliases, `GET /api/symbols?exchange=`, exchange/currency in search results, and `currency`/`exchange` on quotes. (@kiwifellows)
 - feat: `@teemtape/symbols-sync` pipeline (SEC, NZX, ASX, NSE adapters → `teemtape.symbol.v1` NDJSON → idempotent D1 import) and the fortnightly / on-demand `sync-symbols.yml` workflow; the Worker's SEC cron is removed. See `docs/plans/multi-market.md`. (@kiwifellows)
 
