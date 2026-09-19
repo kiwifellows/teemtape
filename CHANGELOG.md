@@ -1,3 +1,25 @@
+## [v1.0.0] - 2026-09-19
+
+- Skill update with correct package name ([#24](https://github.com/kiwifellows/teemtape/pull/24)) (@kiwifellows)
+- robots ([#25](https://github.com/kiwifellows/teemtape/pull/25)) (@kiwifellows)
+- Feature/ai requests ([#26](https://github.com/kiwifellows/teemtape/pull/26)) (@kiwifellows)
+- Fix markdown watchlist URL routing on Cloudflare Pages. ([#27](https://github.com/kiwifellows/teemtape/pull/27)) (@kiwifellows)
+- Fix /w/:token.md returning HTML on Cloudflare Pages. ([#28](https://github.com/kiwifellows/teemtape/pull/28)) (@kiwifellows)
+- Updated Cloudflare pages deploy ([#22](https://github.com/kiwifellows/teemtape/pull/22)) (@kiwifellows)
+- Deploy docs as a Worker with static assets ([#29](https://github.com/kiwifellows/teemtape/pull/29)) (@kiwifellows)
+- teemtape Pro: plan, research brief, and market research findings ([#30](https://github.com/kiwifellows/teemtape/pull/30)) (@kiwifellows)
+- Add optional AUTHZ authorisation hook (teemtape Pro P1) ([#31](https://github.com/kiwifellows/teemtape/pull/31)) (@kiwifellows)
+- Enable the teemtape Pro AUTHZ binding and dashboard URL in production ([#33](https://github.com/kiwifellows/teemtape/pull/33)) (@kiwifellows)
+- Add AGENTS.md/CLAUDE.md context; point AUTHZ binding at teemtape-pro ([#32](https://github.com/kiwifellows/teemtape/pull/32)) (@kiwifellows)
+- Raise the production AUTHZ timeout to 1000 ms ([#34](https://github.com/kiwifellows/teemtape/pull/34)) (@kiwifellows)
+- Add teemtape logo ([#35](https://github.com/kiwifellows/teemtape/pull/35)) (@kiwifellows)
+- Show what a caller may do on a watchlist and explain why not ([#36](https://github.com/kiwifellows/teemtape/pull/36)) (@kiwifellows)
+- Multi-market symbols: canonical IDs, symbols pipeline, fortnightly sync (M5) ([#37](https://github.com/kiwifellows/teemtape/pull/37)) (@kiwifellows)
+- Symbols sync: import as a diff against the live table, not a full rewrite ([#38](https://github.com/kiwifellows/teemtape/pull/38)) (@kiwifellows)
+- CLI: watchlists, use, and inbox over the teemtape Pro API ([#39](https://github.com/kiwifellows/teemtape/pull/39)) (@kiwifellows)
+- Run the clawhub CLI directly in publish-skills.yml ([#40](https://github.com/kiwifellows/teemtape/pull/40)) (@kiwifellows)
+- FinOps: rate-limit binding, edge-cached quotes, in-memory symbols catalog ([#41](https://github.com/kiwifellows/teemtape/pull/41)) (@kiwifellows)
+
 ## Unreleased
 
 - perf: rate limiting moved from a KV counter to the Workers Rate Limiting binding (`RATE_LIMITER`; `RATE_LIMIT_RPM` var removed, the limit is on the binding) — no KV operations per request. `GET /api/quotes` is now served through the edge Cache API for the delay window with `cache-control: public, max-age=<delay>`, and the KV lookup is one bulk read per request instead of one per symbol. (@kiwifellows)
