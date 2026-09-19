@@ -1,5 +1,5 @@
 import type { Quote } from "@teemtape/api-client";
-import { fmtChange, fmtPrice } from "../lib/format";
+import { fmtChange, fmtMoney } from "../lib/format";
 
 export function WatchlistTable({
   quotes,
@@ -54,7 +54,7 @@ export function WatchlistTable({
                 {quote.name}
               </td>
               <td className="right num" data-label="Last price">
-                ${fmtPrice(quote.price)}
+                {fmtMoney(quote.price, quote.currency)}
               </td>
               <td className={`right num ${change.direction}`} data-label="Change">
                 {change.text}

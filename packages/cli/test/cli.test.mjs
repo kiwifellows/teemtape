@@ -110,6 +110,29 @@ test("search: requires a query or filter", async () => {
   });
 });
 
+test("search: shows every market a bare code matches, and filters by exchange", async (t) => {
+  const server = createMockServer();
+  server.listen(0);
+  await once(server, "listening");
+  const env = { TEEMTAPE_API_URL: `http://localhost:${server.address().port}` };
+  t.after(() => server.close());
+
+  // AMP is two different companies — both rows come back, exact matches first.
+  const { stdout } = await cli(["search", "amp"], env);
+  const lines = stdout.trim().split("\n");
+  assert.match(lines[0], /SYMBOL\s+EXCHANGE\s+CCY\s+COMPANY/);
+  assert.match(lines[1], /^AMP\s+NYSE\s+USD\s+Ameriprise/);
+  assert.match(lines[2], /^AMP\.AX\s+ASX\s+AUD\s+AMP Limited/);
+
+  const nzx = await cli(["--json", "search", "fisher", "--exchange", "nzx"], env);
+  const res = JSON.parse(nzx.stdout);
+  assert.equal(res.exchange, "NZX");
+  assert.deepEqual(
+    res.symbols.map((s) => [s.ticker, s.exchange, s.currency]),
+    [["FPH.NZ", "NZX", "NZD"]],
+  );
+});
+
 test("login: verifies and saves an access token; private lists then work; logout forgets it", async (t) => {
   const seeded = "6f1ed002ab5595859014ebf0951522d9";
   const server = createMockServer({

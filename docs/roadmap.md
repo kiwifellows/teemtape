@@ -35,6 +35,7 @@
 | **M2** | Desktop web (read + notes) | React web | Primary end-user surface. |
 | **M3** | Mobile web | React web (responsive) | Reuses M2 components + tokens; small incremental delta. |
 | **M4** | React Native app | RN | Reuses shared API client/types; highest-cost packaging, lowest urgency. |
+| **M5** | Multi-market symbols | Pipeline + API + clients | NZX, ASX, SGX, HKEX, Tokyo, LSE, EU, India. Canonical `BASE.SUFFIX` IDs and an out-of-band catalog pipeline; see [`docs/plans/multi-market.md`](plans/multi-market.md). Slotted ahead of M4 (added 2026-09-19). |
 
 > **Note on the original "desktop first" steer.** Phase-1 framing said desktop
 > first. The only change here is slotting the **CLI ahead of desktop**, because it
@@ -117,6 +118,28 @@ Native shell reusing the shared API client and types. Highest packaging cost
 
 **Definition of done**
 - Watchlist + notes + share link working on iOS/Android via the same API.
+
+## M5 — Multi-market symbols (added 2026-09-19)
+
+Tickers are only unique per exchange (`AMP` is Ameriprise on NYSE and AMP
+Limited on ASX), so going beyond the US is first an **identity** problem and
+then a **data sourcing** problem. Plan and status: [`docs/plans/multi-market.md`](plans/multi-market.md).
+
+**Deliverables**
+- Canonical symbols `BASE[.SUFFIX]` (US bare, `FPH.NZ`, `BHP.AX`, `0700.HK`…)
+  with a shared market registry; `EXCHANGE:TICKER` aliases accepted on input.
+- `packages/symbols-sync`: exchange listings → `teemtape.symbol.v1` NDJSON →
+  idempotent D1 import. One adapter per official source (SEC, NZX, ASX, NSE
+  first), fixtures + tests, collisions refused rather than guessed.
+- A fortnightly / on-demand GitHub workflow replaces the Worker's cron.
+- Search shows exchange + currency everywhere (API, CLI, web).
+- Then: per-market delay badge, SGX/HKEX/Tokyo, LSE/EU, BSE.
+
+**Definition of done**
+- `teemtape search amp` lists both AMP rows; `teemtape add ASX:AMP` stores `AMP.AX`.
+- Production catalog refreshed by the workflow, not by a Worker cron.
+- Yahoo is used for on-demand delayed quotes in the OSS app only — never
+  for the catalog and never on Pro surfaces.
 
 ---
 

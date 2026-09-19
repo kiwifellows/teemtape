@@ -13,7 +13,7 @@ tools.
 
 The `teemtape-cli` skill makes an agent fluent in:
 
-- listing delayed quotes and searching the SEC ticker catalog,
+- listing delayed quotes and searching the multi-market ticker catalog,
 - reading and posting anonymous notes,
 - managing watchlists and anonymous handles, and
 - the agent etiquette (read before writing, always `--json`, never echo the

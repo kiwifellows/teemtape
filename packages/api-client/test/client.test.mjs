@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createMockServer } from "../../mock-server/src/server.mjs";
-import { TeemtapeClient, ApiError } from "../dist/index.js";
+import { TeemtapeClient, ApiError, findMarket, normalizeSymbol, splitSymbol } from "../dist/index.js";
 
 test("client round-trips against the mock API", async (t) => {
   const server = createMockServer();
@@ -35,6 +35,32 @@ test("client round-trips against the mock API", async (t) => {
   const after = await scoped.getNotes("NVDA");
   assert.equal(after.notes.length, 1);
   assert.equal(after.notes[0].body, "hello from cli");
+});
+
+test("client searches the multi-market catalog and normalises symbol helpers", async (t) => {
+  const server = createMockServer();
+  server.listen(0);
+  await once(server, "listening");
+  const baseUrl = `http://localhost:${server.address().port}`;
+  t.after(() => server.close());
+
+  const client = new TeemtapeClient({ baseUrl });
+  const amp = await client.listSymbols({ q: "amp" });
+  assert.deepEqual(
+    amp.symbols.map((s) => s.ticker),
+    ["AMP", "AMP.AX"],
+  );
+  const asx = await client.listSymbols({ q: "amp", exchange: "ASX" });
+  assert.deepEqual(asx.symbols.map((s) => [s.ticker, s.currency]), [["AMP.AX", "AUD"]]);
+
+  // EXCHANGE:TICKER aliases collapse to canonical symbols; US stays bare.
+  assert.equal(normalizeSymbol("asx:bhp"), "BHP.AX");
+  assert.equal(normalizeSymbol("NZX:FPH"), "FPH.NZ");
+  assert.equal(normalizeSymbol("nasdaq:aapl"), "AAPL");
+  assert.equal(normalizeSymbol("bhp.ax"), "BHP.AX");
+  assert.deepEqual(splitSymbol("0700.HK").market.code, "HKEX");
+  assert.equal(splitSymbol("BRK.B").suffix, "", "US class shares are not a market suffix");
+  assert.equal(findMarket("tyo").suffix, "T");
 });
 
 test("client claims handles and attributes notes to them", async (t) => {

@@ -2,7 +2,7 @@
 
 The teemtape backend: a single **Cloudflare Worker** that serves delayed quotes,
 stores **anonymous notes + watchlists** in **Cloudflare D1**, caches quotes in
-**KV**, and syncs the SEC symbol catalog on a schedule.
+**KV**, and serves a multi-market symbols catalog that is refreshed out-of-band.
 
 > Not a trading tool. Quotes are intentionally delayed (~1 min) and informational.
 
@@ -12,7 +12,7 @@ stores **anonymous notes + watchlists** in **Cloudflare D1**, caches quotes in
 | --- | --- |
 | `GET /health` | Liveness + configured delay |
 | `GET /api/quotes?symbols=AAPL,MSFT` | Delayed quotes (cached in KV) |
-| `GET /api/symbols` | Paginated SEC symbol catalog (see below) |
+| `GET /api/symbols` | Paginated multi-market symbols catalog (see below) |
 | `POST /api/watchlists` | Create an anonymous watchlist (returns MD5-shaped token) |
 | `POST /api/handles` | Claim `{ handle }`, or auto-generate a unique one (empty body) |
 | `GET /api/handles/:handle` | Check availability (`{ handle, available }`) |
@@ -24,7 +24,10 @@ stores **anonymous notes + watchlists** in **Cloudflare D1**, caches quotes in
 
 ### `GET /api/symbols`
 
-Paginated list of SEC company tickers (100 per page by default).
+Paginated catalog of listings (100 per page by default), keyed by canonical
+symbol (`AAPL`, `FPH.NZ`, `BHP.AX`). Rows carry `exchange`, `mic`, `currency`,
+`country`, `isin`, `cikStr`; a bare query like `amp` returns every market's
+match, exact-base first.
 
 | Query param | Default | Description |
 | --- | --- | --- |
@@ -34,6 +37,7 @@ Paginated list of SEC company tickers (100 per page by default).
 | `q` | — | Search ticker **or** company name |
 | `symbol` | — | Filter by ticker substring |
 | `name` | — | Filter by company name substring |
+| `exchange` | — | One market: code (`US`, `NZX`, `ASX`, `NSE`) or alias (`NASDAQ`) |
 
 ### Anonymous handles
 
@@ -68,31 +72,33 @@ TEEMTAPE_API_URL=http://127.0.0.1:8787 node ../../packages/cli/dist/index.js ini
 With no `POLYGON_API_KEY` set, the Worker serves deterministic **sample** quotes,
 so it runs with zero external setup.
 
-## SEC symbols sync
+## Symbols catalog sync
 
-A cron trigger (`0 */12 * * *` — every 12 hours) fetches
-[SEC company tickers](https://www.sec.gov/files/company_tickers.json) and upserts
-the `symbols` D1 table. Update `SEC_USER_AGENT` in `wrangler.toml` with a real
-contact email (SEC fair-access policy).
+The Worker has **no cron** and never fetches listings. The `symbols` table is
+filled by `packages/symbols-sync` (exchange / SEC listing files →
+`teemtape.symbol.v1` NDJSON → idempotent SQL) and applied with
+`wrangler d1 execute`. In production the *Sync symbols catalog* GitHub
+workflow does this on the 1st and 15th of each month, or on demand.
 
-**Cron does not run automatically during local dev.** With `npm run dev` running,
-trigger a sync manually in a second terminal:
+Locally, after `npm run migrate:local`:
 
 ```bash
-cd workers/api
-npm run sync:local
-# equivalent: curl "http://127.0.0.1:8787/cdn-cgi/handler/scheduled"
+npm run build --workspace @teemtape/symbols-sync            # from the repo root
+node packages/symbols-sync/dist/cli.js fetch --market US  --out out/US.ndjson
+node packages/symbols-sync/dist/cli.js fetch --market NZX --out out/NZX.ndjson
+node packages/symbols-sync/dist/cli.js import out/*.ndjson --sql out/symbols.sql
+cd workers/api && npx wrangler d1 execute teemtape-db --local --file ../../out/symbols.sql
 ```
 
-Watch the `wrangler dev` terminal for `symbols sync complete { upserted: … }`.
 Then verify:
 
 ```bash
-npx wrangler d1 execute teemtape-db --local --command "SELECT COUNT(*) AS n FROM symbols"
-curl "http://127.0.0.1:8787/api/symbols?offset=0&limit=5"
+npx wrangler d1 execute teemtape-db --local --command "SELECT suffix, COUNT(*) AS n FROM symbols GROUP BY suffix"
+curl "http://127.0.0.1:8787/api/symbols?q=amp"
 ```
 
-In production, the cron runs on deploy without any manual step.
+Canonical symbol rules, the record schema and the per-market source list:
+[`docs/plans/multi-market.md`](../../docs/plans/multi-market.md).
 
 ## Quotes provider
 

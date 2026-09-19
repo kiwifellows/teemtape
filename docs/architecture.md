@@ -62,14 +62,14 @@ Two tables to start — nothing speculative.
 CREATE TABLE watchlist (
   token       TEXT PRIMARY KEY,         -- md5 hex, e.g. 6f1ed0...
   created_at  INTEGER NOT NULL,         -- unix epoch (ms)
-  symbols     TEXT NOT NULL DEFAULT '[]' -- JSON array of tickers
+  symbols     TEXT NOT NULL DEFAULT '[]' -- JSON array of canonical symbols (AAPL, FPH.NZ)
 );
 
 -- Anonymous notes attached to a (watchlist, symbol).
 CREATE TABLE note (
   id          TEXT PRIMARY KEY,         -- uuid
   token       TEXT NOT NULL REFERENCES watchlist(token),
-  symbol      TEXT NOT NULL,            -- e.g. AAPL
+  symbol      TEXT NOT NULL,            -- canonical symbol, e.g. AAPL or BHP.AX
   author      TEXT NOT NULL,            -- chosen handle, anon-xxxxxx, or agent-cli
   source      TEXT NOT NULL,            -- 'web' | 'cli'
   body        TEXT NOT NULL,
@@ -106,6 +106,23 @@ each client picks a short, human-friendly **handle** once and reuses it:
   secret or a credential — anyone can claim any free handle; it is purely a
   display identity. This is a deliberate first step that could later grow into a
   real account/handle, but stays simple for now.
+
+### Symbols catalog (multi-market)
+
+The `symbols` table (migration `0004_symbols_markets.sql`) holds one row per
+listing, keyed by the **canonical symbol** — bare for US (`AAPL`), Yahoo-style
+suffix elsewhere (`FPH.NZ`, `BHP.AX`, `0700.HK`) — with `base`, `suffix`,
+`exchange_code`, `mic`, `currency`, `country`, `isin`, `cik_str` (US only) and
+`source`. Tickers collide across exchanges (`AMP` is two companies), so the
+suffix is part of the identity and search returns every listing a bare code
+matches, exact-base first.
+
+The Worker only **reads** this table. It is filled out-of-band by
+`packages/symbols-sync` (exchange listings → `teemtape.symbol.v1` NDJSON →
+idempotent SQL → `wrangler d1 execute`), run fortnightly or on demand by
+`.github/workflows/sync-symbols.yml`. Sources are the exchanges' and the
+SEC's own public listing files; Yahoo is never a catalog source. Full detail:
+[`docs/plans/multi-market.md`](plans/multi-market.md).
 
 ## Share links (anonymous MD5 token)
 
@@ -232,7 +249,9 @@ For a public consumer app, rely on rate limiting instead.
 
 All inputs are validated in `workers/api/src/validation.ts`:
 
-- Symbols: regex `^[A-Z][A-Z0-9.\-]{0,9}$`, max 50 per query
+- Symbols: canonical `BASE[.SUFFIX]`, regex `^[A-Z0-9][A-Z0-9.&\-]{0,19}$`
+  (leading digits for HK/Tokyo, `&` for NSE), `EXCHANGE:TICKER` aliases
+  normalised first, max 50 per query — see `docs/plans/multi-market.md`
 - Note bodies: max 2 000 characters
 - Watchlist tokens: exactly 32 hex characters
 - Handles: 3–20 characters, `[a-z0-9_-]`, starts with a letter
@@ -274,7 +293,8 @@ Code: [`workers/api/src/authz.ts`](../workers/api/src/authz.ts).
 ## API surface (draft, shared by web + mobile + CLI)
 
 ```
-GET  /api/quotes?symbols=AAPL,MSFT      -> delayed quote rows
+GET  /api/quotes?symbols=AAPL,MSFT      -> delayed quote rows (+ currency/exchange when known)
+GET  /api/symbols?q=amp&exchange=ASX    -> symbols catalog: ticker, exchange, mic, currency, title …
 GET  /api/whoami                        -> { user: { handle } | null } (via AUTHZ hook)
 POST /api/handles                       -> claim { handle } or auto-generate a unique one
 GET  /api/handles/:handle               -> { handle, available }

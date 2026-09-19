@@ -21,6 +21,10 @@ export interface Quote {
   pct: number;
   /** ISO timestamp of the (delayed) quote. */
   asOf: string;
+  /** ISO 4217 currency of `price`, when the provider reports it (Yahoo says "GBp" for LSE pence). */
+  currency?: string;
+  /** Provider's exchange label, when reported (e.g. "NMS", "NZE", "ASX"). */
+  exchange?: string;
   /**
    * ISO timestamp of when this quote was fetched and written into the cache.
    * Present on every response (whether served from cache or freshly fetched).
@@ -129,11 +133,26 @@ export interface CreateNoteInput {
   handle?: string;
 }
 
-/** A row in the SEC symbols reference catalog. */
+/**
+ * A row in the symbols catalog (one listing on one exchange). `ticker` is
+ * the canonical symbol (`AAPL`, `FPH.NZ`, `0700.HK`) — the string to store
+ * on watchlists and notes. See markets.ts for the suffix ↔ exchange table.
+ */
 export interface SymbolEntry {
   ticker: string;
-  cikStr: number;
+  /** Short exchange code for badges: "NASDAQ", "NYSE", "NZX", "ASX", … */
+  exchange: string;
+  /** ISO 10383 MIC of the listing venue ("XXXX" when not known). */
+  mic: string;
+  /** ISO 4217 trading currency. */
+  currency: string;
+  /** ISO 3166-1 alpha-2 country of the exchange. */
+  country: string;
   title: string;
+  /** ISIN when the source publishes one. */
+  isin: string | null;
+  /** SEC Central Index Key — US listings only. */
+  cikStr: number | null;
 }
 
 export interface SymbolsListResponse {
@@ -146,6 +165,8 @@ export interface SymbolsListResponse {
   total: number;
   /** Sort order applied: ticker or title. */
   sort: "ticker" | "title";
+  /** Exchange filter that was applied, if any. */
+  exchange?: string;
 }
 
 /** Why the authorisation hook refused a request (401 → sign in, 403 → insufficient role). */

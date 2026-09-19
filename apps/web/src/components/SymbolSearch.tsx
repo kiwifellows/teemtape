@@ -83,6 +83,9 @@ export function SymbolSearch({
             <li key={entry.ticker} role="option">
               <button type="button" onClick={() => pick(entry)}>
                 <span className="ticker">{entry.ticker}</span>
+                <span className="exchange-badge" title={`${entry.exchange} · ${entry.currency}`}>
+                  {entry.exchange}
+                </span>
                 <span className="muted">{entry.title}</span>
               </button>
             </li>

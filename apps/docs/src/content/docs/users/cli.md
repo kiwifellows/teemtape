@@ -52,8 +52,11 @@ teemtape init
 ## Everyday commands
 
 ```bash
-# Find a ticker in the SEC catalog
+# Find a ticker (any market — results show the exchange and currency)
 teemtape search nvidia
+teemtape search amp                  # AMP (NYSE) and AMP.AX (ASX) are different companies
+teemtape search fisher --exchange nzx
+teemtape add FPH.NZ                  # non-US symbols always carry their market suffix
 
 # Add it to your watchlist
 teemtape add NVDA
@@ -75,7 +78,7 @@ teemtape share
 | --- | --- |
 | `teemtape init` | Create a new anonymous watchlist; saves the token to your config |
 | `teemtape list [--symbols A,B]` | Delayed quotes for your watchlist (or specific symbols) |
-| `teemtape search [QUERY]` | Search the SEC symbol catalog by ticker or company name |
+| `teemtape search [QUERY]` | Search the symbols catalog by ticker or company name (`--exchange` to narrow to one market) |
 | `teemtape add <SYMBOL>` | Add a symbol to your watchlist |
 | `teemtape notes <SYMBOL>` | Read the anonymous note thread for a symbol |
 | `teemtape note <SYMBOL> -m "…"` | Post an anonymous note (tagged `source: cli`) |

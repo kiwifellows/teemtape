@@ -95,8 +95,11 @@ Notes are anonymous. The `author` is the poster's chosen
 [handle](/users/handles/) when set, falling back to a short token-derived label
 (`anon-xxxxxx`) or `agent-cli`. No accounts, no PII.
 
-The SEC ticker catalog is stored in a `symbols` table, kept fresh by a scheduled
-sync (see the [HTTP API reference](/reference/api/#sec-symbols-sync)).
+The multi-market symbols catalog is stored in a `symbols` table keyed by the
+canonical symbol (`AAPL`, `FPH.NZ`, `BHP.AX`). It is refreshed out-of-band by
+the `symbols-sync` pipeline from exchange listing files — fortnightly or on
+demand, never by the Worker itself (see the
+[HTTP API reference](/reference/api/#symbols-catalog-sync)).
 
 ## Share links (anonymous MD5 token)
 
@@ -123,7 +126,7 @@ The single contract shared by web, mobile, and CLI:
 
 ```
 GET  /api/quotes?symbols=AAPL,MSFT      -> delayed quote rows
-GET  /api/symbols                       -> paginated SEC symbol catalog
+GET  /api/symbols                       -> paginated multi-market symbols catalog
 POST /api/handles                       -> claim { handle } or auto-generate one
 GET  /api/handles/:handle               -> { handle, available }
 POST /api/watchlists                    -> create an anonymous watchlist

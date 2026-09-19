@@ -42,7 +42,7 @@ it clear the data is not real-time.
 
 Use the symbol search to find a company by ticker or name, then add it to your
 watchlist. Symbols are normalized to uppercase (so `nvda` becomes `NVDA`). The
-search is backed by the SEC company-ticker catalog.
+search is backed by a multi-market catalog (US, NZX, ASX, NSE so far); every result shows its exchange, so `AMP` (NYSE) and `AMP.AX` (ASX) are never confused.
 
 ## Reading and writing notes
 

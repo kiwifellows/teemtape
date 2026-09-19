@@ -67,7 +67,7 @@ commands pick up the token automatically.
 ## Workflow: find a ticker, add it, check notes
 
 ```bash
-# 1. Search SEC symbol catalog (no token required)
+# 1. Search the symbols catalog (no token required)
 teemtape search nvidia --json
 
 # 2. Add to watchlist
@@ -88,7 +88,7 @@ teemtape note NVDA --message "Your observation here." --json
 | Command | Token required | Purpose |
 | ------- | -------------- | ------- |
 | `init` | No | Create watchlist, save token |
-| `search [QUERY]` | No | Search SEC ticker/company catalog |
+| `search [QUERY]` | No | Search the ticker/company catalog (US, NZX, ASX, NSE, …) |
 | `list [--symbols A,B]` | Yes* | Delayed quotes for watchlist or symbols |
 | `add <SYMBOL>` | Yes | Add symbol to watchlist |
 | `notes <SYMBOL>` | Yes | Read note thread |
@@ -107,7 +107,23 @@ needs a token for API auth in most deployments.
 teemtape search --symbol nv --limit 10 --json     # ticker substring
 teemtape search --name microsoft --json           # company name substring
 teemtape search apple --sort title --offset 20 --json
+teemtape search fisher --exchange nzx --json      # one market only
 ```
+
+## Symbols are per-exchange — always keep the suffix
+
+Tickers are only unique within one exchange: `AMP` is Ameriprise (NYSE) **and**
+AMP Limited (ASX). teemtape identifies a listing by its canonical symbol —
+bare for US (`AAPL`) and suffixed elsewhere (`FPH.NZ`, `BHP.AX`, `0700.HK`,
+`7203.T`, `VOD.L`, `RELIANCE.NS`). Rules for agents:
+
+- Search first. Every result has `exchange` and `currency`; if a bare code
+  returns more than one row, **ask or pick by exchange — never assume US**.
+- Use the `ticker` field from search results verbatim in `add`, `notes`, `note`.
+- `EXCHANGE:TICKER` input is accepted (`asx:bhp` → `BHP.AX`), but store and
+  quote the canonical form you get back.
+- Non-US quotes are in the listing's currency (`currency` on the quote row) and
+  Yahoo-stated delays are 15–20 min for most non-US exchanges.
 
 ## Parsing `--json` output
 

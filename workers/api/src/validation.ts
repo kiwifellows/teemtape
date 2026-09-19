@@ -1,18 +1,35 @@
+import { findMarket, normalizeSymbol } from "@teemtape/api-client";
 import { HttpError } from "./http.js";
 
-const SYMBOL_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+// Canonical symbols are `BASE[.SUFFIX]` (docs/plans/multi-market.md). Leading
+// digits are legal (HK "0700.HK", Tokyo "7203.T"), NSE symbols run long
+// ("RELIANCE.NS") and may contain "&" ("M&M.NS"), hence no leading-letter
+// rule, "&" allowed, and a 20-char cap. "&" must be URL-encoded in query
+// strings; the api-client already does so.
+const SYMBOL_RE = /^[A-Z0-9][A-Z0-9.&\-]{0,19}$/;
 const MAX_SYMBOLS_PER_QUERY = 50;
 const MAX_NOTE_LENGTH = 2000;
 const SYMBOLS_PAGE_SIZE = 100;
 const MAX_SYMBOLS_OFFSET = 1_000_000;
 const MAX_SEARCH_LENGTH = 100;
 
-/** Normalize + validate a ticker symbol. Throws HttpError(400) on invalid input. */
+/**
+ * Normalize + validate a ticker symbol. Throws HttpError(400) on invalid input.
+ * Accepts `EXCHANGE:TICKER` aliases (`ASX:BHP` → `BHP.AX`) and upper-cases.
+ */
 export function parseSymbol(raw: unknown): string {
   if (typeof raw !== "string") throw new HttpError(400, "symbol is required");
-  const symbol = raw.trim().toUpperCase();
+  const symbol = normalizeSymbol(raw);
   if (!SYMBOL_RE.test(symbol)) throw new HttpError(400, `invalid symbol: ${raw}`);
   return symbol;
+}
+
+/** Optional `exchange=` filter for the catalog: a market code or alias, returned as the canonical code. */
+export function parseExchangeFilter(raw: string | null): string | undefined {
+  if (raw === null || !raw.trim()) return undefined;
+  const market = findMarket(raw);
+  if (!market) throw new HttpError(400, `unknown exchange: ${raw}`);
+  return market.code;
 }
 
 /** Parse a comma-separated symbols query param into a validated list. */

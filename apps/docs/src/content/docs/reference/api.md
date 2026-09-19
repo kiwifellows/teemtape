@@ -4,8 +4,8 @@ description: The teemtape Worker API — endpoints for quotes, the symbol catalo
 ---
 
 teemtape's backend is a single **Cloudflare Worker** that serves delayed quotes,
-stores anonymous notes + watchlists in **D1**, caches quotes in **KV**, and syncs
-the SEC symbol catalog on a schedule. Every client — web, CLI, and future mobile
+stores anonymous notes + watchlists in **D1**, caches quotes in **KV**, and serves
+a multi-market symbols catalog (refreshed out-of-band, see below). Every client — web, CLI, and future mobile
 — uses this one contract (via the shared `@teemtape/api-client` package).
 
 The production API is served at **`https://api.teemtape.com`**. All responses are
@@ -21,7 +21,7 @@ Quotes are intentionally delayed (~1 min) and informational only.
 | --- | --- |
 | `GET /health` | Liveness + configured delay |
 | `GET /api/quotes?symbols=AAPL,MSFT` | Delayed quotes (cached in KV) |
-| `GET /api/symbols` | Paginated SEC symbol catalog (see below) |
+| `GET /api/symbols` | Paginated multi-market symbols catalog (see below) |
 | `POST /api/watchlists` | Create an anonymous watchlist (returns an MD5-shaped token) |
 | `POST /api/handles` | Claim `{ handle }`, or auto-generate a unique one (empty body) |
 | `GET /api/handles/:handle` | Check availability (`{ handle, available }`) |
@@ -53,9 +53,35 @@ the `POST /api/w/:token/notes` row above.
 For the exact JSON response shapes, see
 [JSON output shapes](/agents/json-output/) (the CLI mirrors these types).
 
+## Symbols: one string, one listing
+
+Tickers are only unique per exchange — `AMP` is Ameriprise on NYSE *and* AMP
+Limited on ASX. teemtape therefore identifies a listing by a **canonical
+symbol**: bare for US listings (`AAPL`, `BRK-B`) and Yahoo-style suffixed for
+every other market (`FPH.NZ`, `BHP.AX`, `0700.HK`, `7203.T`, `VOD.L`,
+`RELIANCE.NS`). That string is what you store on watchlists and notes.
+
+| Market | Suffix | Example |
+| --- | --- | --- |
+| US (NYSE / Nasdaq / OTC) | *(none)* | `AAPL` |
+| NZX | `.NZ` | `FPH.NZ` |
+| ASX | `.AX` | `BHP.AX` |
+| SGX | `.SI` | `C6L.SI` |
+| Hong Kong | `.HK` | `0700.HK` |
+| Tokyo | `.T` | `7203.T` |
+| London | `.L` | `VOD.L` |
+| XETRA / Paris / Amsterdam | `.DE` / `.PA` / `.AS` | `SAP.DE` |
+| NSE / BSE India | `.NS` / `.BO` | `RELIANCE.NS` |
+
+Anywhere a symbol is accepted you may also write `EXCHANGE:TICKER`
+(`ASX:BHP`, `nzx:fph`, `NASDAQ:AAPL`); the API normalises it to the canonical
+form. Symbols match `^[A-Z0-9][A-Z0-9.&\-]{0,19}$` after normalisation.
+
 ## `GET /api/symbols`
 
-A paginated list of SEC company tickers (100 per page by default).
+A paginated catalog of listings (100 per page by default). Each row carries
+its market so a bare query such as `amp` shows **both** companies, exact
+matches first — pick the one you mean; the API never silently chooses.
 
 | Query param | Default | Description |
 | --- | --- | --- |
@@ -65,6 +91,20 @@ A paginated list of SEC company tickers (100 per page by default).
 | `q` | — | Search ticker **or** company name |
 | `symbol` | — | Filter by ticker substring |
 | `name` | — | Filter by company name substring |
+| `exchange` | — | Only one market: a code (`US`, `NZX`, `ASX`, `NSE`, …) or alias (`NASDAQ`, `NYSE`) |
+
+```json
+{
+  "symbols": [
+    { "ticker": "AMP", "exchange": "NYSE", "mic": "XNYS", "currency": "USD", "country": "US", "title": "AMERIPRISE FINANCIAL INC", "isin": null, "cikStr": 820027 },
+    { "ticker": "AMP.AX", "exchange": "ASX", "mic": "XASX", "currency": "AUD", "country": "AU", "title": "AMP LIMITED", "isin": null, "cikStr": null }
+  ],
+  "offset": 0, "limit": 100, "total": 2, "sort": "ticker"
+}
+```
+
+Markets currently in the catalog: **US, NZX, ASX, NSE**. Symbols on other
+markets in the table above are accepted and quoted, just not searchable yet.
 
 ## Authorisation hook (teemtape Pro)
 
@@ -119,30 +159,38 @@ Controlled by the `QUOTES_PROVIDER` variable on the Worker:
 Quotes are cached in KV for the delay window (`QUOTE_DELAY_SECONDS`, minimum 60s)
 to respect free-tier rate limits.
 
-## SEC symbols sync
+## Symbols catalog sync
 
-A cron trigger (`0 */12 * * *`, every 12 hours) fetches the
-[SEC company tickers](https://www.sec.gov/files/company_tickers.json) and upserts
-the `symbols` D1 table. Set `SEC_USER_AGENT` in `wrangler.toml` to a real contact
-email (SEC fair-access policy).
+The Worker never fetches listings itself. The catalog is produced by the
+`@teemtape/symbols-sync` pipeline (`packages/symbols-sync`) from each
+exchange's or regulator's own public listing file — the SEC for the US, the
+NZX market page, the ASX listed-companies CSV, the NSE equity master — and
+imported with `wrangler d1 execute`. No prices are fetched and nothing comes
+from Yahoo Finance.
 
-Cron does **not** run automatically during local dev. With `npm run dev` running,
-trigger a sync manually:
+In production this is the **Sync symbols catalog** GitHub workflow: it runs
+on the 1st and 15th of each month and can be started by hand with a custom
+market list (or as a dry run that only uploads the NDJSON/SQL artifacts).
+
+Locally:
 
 ```bash
-cd workers/api
-npm run sync:local
-# equivalent: curl "http://127.0.0.1:8787/cdn-cgi/handler/scheduled"
+npm run build --workspace @teemtape/symbols-sync
+node packages/symbols-sync/dist/cli.js markets                      # what has an adapter
+node packages/symbols-sync/dist/cli.js fetch --market NZX --out out/NZX.ndjson
+node packages/symbols-sync/dist/cli.js import out/*.ndjson --sql out/symbols.sql
+cd workers/api && npx wrangler d1 execute teemtape-db --local --file ../../out/symbols.sql
 ```
 
 Then verify:
 
 ```bash
-npx wrangler d1 execute teemtape-db --local --command "SELECT COUNT(*) AS n FROM symbols"
-curl "http://127.0.0.1:8787/api/symbols?offset=0&limit=5"
+npx wrangler d1 execute teemtape-db --local --command "SELECT suffix, COUNT(*) AS n FROM symbols GROUP BY suffix"
+curl "http://127.0.0.1:8787/api/symbols?q=amp"
 ```
 
-In production, the cron runs on deploy with no manual step.
+Design, the `teemtape.symbol.v1` record shape, and the per-market source list
+live in the repo at `docs/plans/multi-market.md`.
 
 ## Running the Worker locally
 

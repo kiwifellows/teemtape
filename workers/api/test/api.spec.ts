@@ -150,5 +150,21 @@ describe("teemtape API", () => {
     const { token } = await body<{ token: string }>(created);
     const res = await post(`/api/w/${token}/symbols`, { symbol: "not a symbol!!" });
     expect(res.status).toBe(400);
+    const tooLong = await post(`/api/w/${token}/symbols`, { symbol: "A".repeat(21) });
+    expect(tooLong.status).toBe(400);
+  });
+
+  it("accepts canonical multi-market symbols and EXCHANGE:TICKER aliases", async () => {
+    const created = await post("/api/watchlists");
+    const { token } = await body<{ token: string }>(created);
+
+    // Numeric HK / Tokyo codes, long NSE codes, and TradingView-style input.
+    for (const symbol of ["0700.HK", "7203.t", "RELIANCE.NS", "asx:bhp", "NZX:FPH", "nasdaq:aapl"]) {
+      const res = await post(`/api/w/${token}/symbols`, { symbol });
+      expect(res.status, symbol).toBe(200);
+    }
+    const res = await SELF.fetch(`${BASE}/api/w/${token}`);
+    const { symbols } = await body<{ symbols: string[] }>(res);
+    expect(symbols).toEqual(["0700.HK", "7203.T", "RELIANCE.NS", "BHP.AX", "FPH.NZ", "AAPL"]);
   });
 });

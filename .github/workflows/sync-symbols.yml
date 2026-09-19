@@ -1,0 +1,79 @@
+name: Sync symbols catalog
+
+# Refreshes the D1 `symbols` table from the exchanges' own listing files
+# (SEC, NZX, ASX, NSE — see packages/symbols-sync). Listings change slowly, so
+# this runs on the 1st and 15th of each month, or by hand from the Actions
+# tab with a custom market list. No quotes are fetched here and nothing comes
+# from Yahoo: docs/plans/multi-market.md.
+
+on:
+  schedule:
+    - cron: "0 3 1,15 * *"
+  workflow_dispatch:
+    inputs:
+      markets:
+        description: "Comma-separated market codes to sync (see `teemtape-symbols markets`)"
+        required: false
+        default: "US,NZX,ASX,NSE"
+      dry_run:
+        description: "Build the NDJSON + SQL and upload them, but do not touch D1"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-symbols
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      MARKETS: ${{ github.event.inputs.markets || 'US,NZX,ASX,NSE' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build pipeline
+        run: npm run build --workspace @teemtape/symbols-sync
+
+      - name: Fetch listings → teemtape.symbol.v1 NDJSON
+        run: |
+          mkdir -p out
+          IFS=',' read -ra MARKET_LIST <<< "$MARKETS"
+          for market in "${MARKET_LIST[@]}"; do
+            market="$(echo "$market" | tr -d '[:space:]')"
+            [ -z "$market" ] && continue
+            node packages/symbols-sync/dist/cli.js fetch --market "$market" --out "out/${market}.ndjson"
+          done
+
+      - name: Validate + render import SQL
+        run: node packages/symbols-sync/dist/cli.js import out/*.ndjson --sql out/symbols.sql
+
+      - name: Upload normalised artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: symbols-${{ github.run_id }}
+          path: out/
+          retention-days: 30
+
+      - name: Import into production D1
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/api
+          environment: production
+          command: d1 execute teemtape-db --remote --yes --env production --file ../../out/symbols.sql
