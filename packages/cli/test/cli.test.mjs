@@ -178,3 +178,113 @@ test("login: verifies and saves an access token; private lists then work; logout
   await cli(["logout"], env);
   assert.equal(JSON.parse((await cli(["--json", "config"], env)).stdout).accessToken, "(none)");
 });
+
+// --- teemtape Pro: watchlists / use / inbox ---------------------------------
+
+import { createServer } from "node:http";
+
+/** A stand-in for app.teemtape.com: two saved lists and a few notes behind one token. */
+function createProStub() {
+  const lists = [
+    { token: "a".repeat(32), name: "Energy", description: null, linkAccess: "private", role: "owner", url: "https://www.teemtape.com/w/" + "a".repeat(32), createdAt: "2026-09-01T00:00:00.000Z" },
+    { token: "b".repeat(32), name: "Autos", description: "EV names", linkAccess: "public-view", role: "commenter", url: "https://www.teemtape.com/w/" + "b".repeat(32), createdAt: "2026-09-02T00:00:00.000Z" },
+    { token: "c".repeat(32), name: "Autos Europe", description: null, linkAccess: "public-edit", role: "viewer", url: "https://www.teemtape.com/w/" + "c".repeat(32), createdAt: "2026-09-03T00:00:00.000Z" },
+  ];
+  const notes = [
+    { id: "n1", token: "b".repeat(32), symbol: "TSLA", author: "research_bot", source: "cli", body: "Robotaxi metros up to 6.\nSecond line.", createdAt: "2026-09-19T03:00:00.000Z" },
+    { id: "n2", token: "a".repeat(32), symbol: "XOM", author: "user8351", source: "web", body: "Refining margins", createdAt: "2026-09-19T02:00:00.000Z" },
+    { id: "n3", token: "b".repeat(32), symbol: "RIVN", author: "summary_agent", source: "cli", body: "Guidance reiterated", createdAt: "2026-09-19T01:00:00.000Z" },
+  ];
+  const server = createServer((req, res) => {
+    const send = (status, body) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
+    if (req.headers.authorization !== "Bearer ttp_good") return send(401, { error: "sign in to continue", reason: "sign_in_required" });
+    const url = new URL(req.url, "http://x");
+    if (url.pathname === "/api/watchlists") return send(200, { watchlists: lists });
+    if (url.pathname === "/api/notes") {
+      const limit = Number(url.searchParams.get("limit") ?? 100);
+      const before = url.searchParams.get("before");
+      const window = before ? notes.filter((n) => n.createdAt < before) : notes;
+      return send(200, {
+        notes: window.slice(0, limit),
+        nextBefore: window.length > limit ? window[limit - 1].createdAt : null,
+        lists: lists.map((l) => ({ token: l.token, name: l.name, role: l.role, linkAccess: l.linkAccess, canPost: l.role !== "viewer" })),
+        truncatedLists: [],
+        errors: [],
+      });
+    }
+    send(404, { error: "not found" });
+  });
+  return server;
+}
+
+test("watchlists / use: lists the Pro account's lists and switches the active token", async (t) => {
+  const pro = createProStub();
+  pro.listen(0);
+  await once(pro, "listening");
+  t.after(() => pro.close());
+  const env = {
+    TEEMTAPE_DASHBOARD_URL: `http://localhost:${pro.address().port}`,
+    XDG_CONFIG_HOME: mkdtempSync(join(tmpdir(), "teemtape-pro-")),
+  };
+
+  // needs a token
+  await assert.rejects(() => cli(["watchlists"], env), (err) => /teemtape login/.test(err.stderr));
+  // a bad token is reported as such, with the app URL
+  await assert.rejects(
+    () => cli(["watchlists"], { ...env, TEEMTAPE_ACCESS_TOKEN: "ttp_bad" }),
+    (err) => /did not accept the saved access token/.test(err.stderr) && /teemtape login/.test(err.stderr),
+  );
+
+  const authed = { ...env, TEEMTAPE_ACCESS_TOKEN: "ttp_good" };
+  const listed = JSON.parse((await cli(["--json", "watchlists"], authed)).stdout);
+  assert.equal(listed.current, null);
+  assert.deepEqual(listed.watchlists.map((w) => [w.name, w.role]), [["Energy", "owner"], ["Autos", "commenter"], ["Autos Europe", "viewer"]]);
+  const text = (await cli(["watchlists"], authed)).stdout;
+  assert.match(text, /Energy\s+owner\s+private/);
+  assert.match(text, /Autos\s+commenter\s+link: view/);
+
+  // use by name, prefix, ambiguity, token, URL
+  const used = JSON.parse((await cli(["--json", "use", "energy"], authed)).stdout);
+  assert.equal(used.watchlist.token, "a".repeat(32));
+  assert.equal(JSON.parse((await cli(["--json", "config"], authed)).stdout).token, "aaaaaa…aa");
+  assert.equal(JSON.parse((await cli(["--json", "watchlists"], authed)).stdout).current, "a".repeat(32));
+  assert.match((await cli(["watchlists"], authed)).stdout, /\* Energy/);
+
+  await assert.rejects(() => cli(["use", "auto"], authed), (err) => /matches "Autos", "Autos Europe"/.test(err.stderr));
+  assert.equal(JSON.parse((await cli(["--json", "use", "autos"], authed)).stdout).watchlist.name, "Autos"); // exact beats prefix
+  assert.equal(JSON.parse((await cli(["--json", "use", "autos eu"], authed)).stdout).watchlist.name, "Autos Europe");
+  assert.equal(JSON.parse((await cli(["--json", "use", "https://www.teemtape.com/w/" + "c".repeat(32)], authed)).stdout).watchlist.name, "Autos Europe");
+  await assert.rejects(() => cli(["use", "d".repeat(32)], authed), (err) => /no saved watchlist with token/.test(err.stderr));
+  await assert.rejects(() => cli(["use", "nope"], authed), (err) => /no saved watchlist called "nope"/.test(err.stderr));
+});
+
+test("inbox: cross-list notes newest first, with list/symbol filters and paging hint", async (t) => {
+  const pro = createProStub();
+  pro.listen(0);
+  await once(pro, "listening");
+  t.after(() => pro.close());
+  const env = {
+    TEEMTAPE_DASHBOARD_URL: `http://localhost:${pro.address().port}`,
+    TEEMTAPE_ACCESS_TOKEN: "ttp_good",
+    XDG_CONFIG_HOME: mkdtempSync(join(tmpdir(), "teemtape-inbox-")),
+  };
+
+  const all = JSON.parse((await cli(["--json", "inbox"], env)).stdout);
+  assert.deepEqual(all.notes.map((n) => n.symbol), ["TSLA", "XOM", "RIVN"]);
+
+  const text = (await cli(["inbox"], env)).stdout;
+  assert.match(text, /TSLA\s+research_bot agent · Autos/);
+  assert.match(text, /Robotaxi metros up to 6\.…/); // first line only, ellipsis for the rest
+  assert.match(text, /XOM\s+user8351 web · Energy/);
+
+  const autos = JSON.parse((await cli(["--json", "inbox", "--list", "autos"], env)).stdout);
+  assert.deepEqual(autos.notes.map((n) => n.symbol), ["TSLA", "RIVN"]);
+  const rivn = JSON.parse((await cli(["--json", "inbox", "--symbol", "rivn"], env)).stdout);
+  assert.deepEqual(rivn.notes.map((n) => n.id), ["n3"]);
+  await assert.rejects(() => cli(["inbox", "--list", "nope"], env), (err) => /no list called "nope"/.test(err.stderr));
+
+  const paged = (await cli(["inbox", "--limit", "2"], env)).stdout;
+  assert.match(paged, /older notes: teemtape inbox --before 2026-09-19T02:00:00\.000Z/);
+  const older = JSON.parse((await cli(["--json", "inbox", "--before", "2026-09-19T02:00:00.000Z"], env)).stdout);
+  assert.deepEqual(older.notes.map((n) => n.id), ["n3"]);
+});

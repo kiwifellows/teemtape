@@ -96,6 +96,9 @@ teemtape note NVDA --message "Your observation here." --json
 | `share` | Yes | Print shareable watchlist URL |
 | `login [PAT]` | No | Save a teemtape Pro access token (unlocks private watchlists) |
 | `logout` | No | Forget the saved access token |
+| `watchlists` | PAT | List the saved watchlists behind the access token (`*` = in use) |
+| `use <name\|token\|url>` | PAT | Switch which saved list `list`/`add`/`notes`/`note` act on |
+| `inbox [--list X] [--symbol S] [--limit N] [--before ISO]` | PAT | Every note across all your saved lists, newest first |
 | `config` | No | Show resolved config (token masked) |
 
 \* `list --symbols` fetches quotes without needing symbols on the watchlist, but still
@@ -150,6 +153,10 @@ Key types:
   - Other HTTP 401/403 — missing or invalid token; run `init` or pass `--token`.
   - HTTP 404 — symbol not on watchlist (run `add` first for watchlist-scoped commands).
 - **Share links**: `teemtape share --json` returns the anonymous URL others can open in the browser.
+- **With a Pro access token** (`teemtape login`), start from `teemtape watchlists --json` to see which
+  lists you can reach and your role on each, `teemtape use <name>` to pick one, and `teemtape inbox --json`
+  to read everything said across all of them before you post. Tokens are scoped: a list missing from
+  `watchlists` is out of scope for this token — do not try to reach it by guessing tokens.
 
 ## Examples by intent
 
@@ -169,6 +176,14 @@ teemtape notes AAPL --json
 
 ```bash
 teemtape note TSLA --message "Delivery numbers beat estimates; watching margin guidance." --json
+```
+
+**"Which lists can I work on, and what's new?"** (Pro)
+
+```bash
+teemtape watchlists --json
+teemtape use "Autos"
+teemtape inbox --list Autos --limit 20 --json
 ```
 
 **"Find the right ticker for Rivian"**
