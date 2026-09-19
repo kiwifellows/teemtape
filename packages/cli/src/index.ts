@@ -6,7 +6,9 @@ import { configCommand } from "./commands/config.js";
 import { handleCommand } from "./commands/handle.js";
 import { initCommand } from "./commands/init.js";
 import { listCommand } from "./commands/list.js";
+import { inboxCommand, type InboxOptions } from "./commands/inbox.js";
 import { loginCommand, logoutCommand } from "./commands/login.js";
+import { useCommand, watchlistsCommand } from "./commands/watchlists.js";
 import { noteCommand } from "./commands/note.js";
 import { notesCommand } from "./commands/notes.js";
 import { searchCommand } from "./commands/search.js";
@@ -146,6 +148,26 @@ program
   .action(async (name: string | undefined, opts: { generate?: boolean }, command: Command) =>
     run(command, (ctx) => handleCommand(ctx, name, opts)),
   );
+
+program
+  .command("watchlists")
+  .description("list the saved watchlists behind your teemtape Pro access token")
+  .action(async (_opts, command: Command) => run(command, (ctx) => watchlistsCommand(ctx)));
+
+program
+  .command("use")
+  .argument("<name-or-token>", "a saved list's name (or unique prefix), its token, or its share URL")
+  .description("switch the list that list/add/notes/note act on")
+  .action(async (target: string, _opts, command: Command) => run(command, (ctx) => useCommand(ctx, target)));
+
+program
+  .command("inbox")
+  .description("every note across all your saved lists, newest first (teemtape Pro)")
+  .option("--limit <n>", "notes to show (default 50, max 200)")
+  .option("--list <name>", "only one list (name, prefix, or token)")
+  .option("--symbol <ticker>", "only one symbol")
+  .option("--before <iso>", "page: notes older than this timestamp")
+  .action(async (opts: InboxOptions, command: Command) => run(command, (ctx) => inboxCommand(ctx, opts)));
 
 program
   .command("login")

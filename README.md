@@ -33,6 +33,16 @@ teemtape notes SPCX
 teemtape list --token <some_token_from_url>
 ```
 
+With a **teemtape Pro** account ([app.teemtape.com](https://app.teemtape.com)) the CLI also
+works across your saved lists with a scoped access token:
+
+```
+teemtape login <ttp_token>        # from app.teemtape.com/tokens
+teemtape watchlists               # the lists this token can reach, and your role on each
+teemtape use "Autos"              # switch the list that list/add/notes/note act on
+teemtape inbox                    # every note across all your lists, newest first
+```
+
 ### Try it now, locally
 
 Run the real backend locally (serves deterministic **sample** quotes with no API key):
