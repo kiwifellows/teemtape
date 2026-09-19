@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { ADAPTERS, dedupe, parseCsv, parseNdjson, planImport, toImportSql, toNdjson, validateRecord } from "../dist/index.js";
+import { ADAPTERS, CATALOG_COLUMNS, dedupe, parseCsv, parseNdjson, planImport, toCatalogSnapshot, toImportSql, toNdjson, validateRecord } from "../dist/index.js";
 
 const SYNCED_AT = "2026-09-19T00:00:00.000Z";
 const fixture = (name) => readFile(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
@@ -228,4 +228,37 @@ test("cli import --current accepts wrangler's --json envelope", async () => {
   assert.equal(res.status, 0, res.stderr);
   assert.match(res.stderr, /0 to upsert, 0 to delete, \d+ unchanged/);
   assert.doesNotMatch(await readFile(path.join(dir, "out.sql"), "utf8"), /INSERT|DELETE/);
+});
+
+test("snapshot: the live table becomes a ticker-sorted teemtape.catalog.v1 with only the non-derivable columns", async () => {
+  const asx = ADAPTERS.get("ASX").parse(await fixture("asx.csv"), SYNCED_AT);
+  const asRow = (r) => ({
+    ticker: r.symbol, base: r.base, suffix: r.suffix, exchange_code: r.exchangeCode, mic: r.mic,
+    currency: r.currency, country: r.country, title: r.name, isin: r.isin, cik_str: r.cik, source: r.source,
+  });
+  const current = [
+    { ticker: "AAPL", base: "AAPL", suffix: "", exchange_code: "NASDAQ", mic: "XNAS", currency: "USD", country: "US", title: "Apple Inc.", isin: null, cik_str: 320193, source: "sec" },
+    ...asx.map(asRow).reverse(),
+  ];
+  const snapshot = toCatalogSnapshot(current, SYNCED_AT);
+  assert.equal(snapshot.schema, "teemtape.catalog.v1");
+  assert.equal(snapshot.generatedAt, SYNCED_AT);
+  assert.equal(snapshot.count, current.length);
+  assert.deepEqual(snapshot.columns, CATALOG_COLUMNS);
+  assert.deepEqual(snapshot.rows.map((r) => r[0]), ["AAPL", "AMP.AX", "BHP.AX", "OBI.AX"]);
+  assert.deepEqual(snapshot.rows[0], ["AAPL", "NASDAQ", "XNAS", "Apple Inc.", null, 320193]);
+  assert.deepEqual(snapshot.rows[1], ["AMP.AX", "ASX", "XASX", "AMP LIMITED", null, null]);
+
+  // The CLI reads wrangler's --json envelope like `import --current` does.
+  const dir = await mkdtemp(path.join(tmpdir(), "symbols-snapshot-"));
+  await writeFile(path.join(dir, "after.json"), JSON.stringify([{ results: current, success: true, meta: {} }]));
+  const res = spawnSync(process.execPath, [
+    new URL("../dist/cli.js", import.meta.url).pathname,
+    "snapshot", path.join(dir, "after.json"), "--out", path.join(dir, "catalog.json"),
+  ], { encoding: "utf8" });
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stderr, /4 symbols/);
+  const written = JSON.parse(await readFile(path.join(dir, "catalog.json"), "utf8"));
+  assert.equal(written.count, 4);
+  assert.deepEqual(written.rows.map((r) => r[0]), snapshot.rows.map((r) => r[0]));
 });

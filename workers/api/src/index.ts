@@ -1,6 +1,6 @@
 import { authorize, identify, notifyCreated, toWatchlistAccess } from "./authz.js";
 import type { Env } from "./env.js";
-import { applyCors, error, HttpError, json, noContent } from "./http.js";
+import { applyCors, cachedJson, error, HttpError, json, noContent } from "./http.js";
 import { getQuotes } from "./quotes.js";
 import { checkApiKey, checkRateLimit } from "./rate-limit.js";
 import {
@@ -40,6 +40,9 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
+/** Edge-cache lifetime for catalog responses: the data changes fortnightly. */
+const SYMBOLS_MAX_AGE_SECONDS = 3600;
+
 async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -60,25 +63,31 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   await checkRateLimit(request, env);
 
   // GET /api/quotes?symbols=AAPL,MSFT
+  // Quotes are ~QUOTE_DELAY_SECONDS stale by design, so an edge cache of the
+  // same length is invisible to callers while a hit skips KV and providers.
   if (path === "/api/quotes" && method === "GET") {
     const symbols = parseSymbolList(url.searchParams.get("symbols"));
-    return json(await getQuotes(env, symbols));
+    const maxAge = Number(env.QUOTE_DELAY_SECONDS ?? "60");
+    const key = new Request(`${url.origin}/api/quotes?symbols=${symbols.join(",")}`);
+    return cachedJson(ctx, key, maxAge, () => getQuotes(env, symbols));
   }
 
   // GET /api/symbols?offset=0&limit=100&sort=ticker|title&q=&symbol=&name=&exchange=
   if (path === "/api/symbols" && method === "GET") {
     const { offset, limit } = parseSymbolsPagination(url.searchParams);
-    return json(
-      await listSymbolsCatalog(env, {
-        offset,
-        limit,
-        sort: parseSymbolsSort(url.searchParams.get("sort")),
-        exchange: parseExchangeFilter(url.searchParams.get("exchange")),
-        q: parseOptionalSearch(url.searchParams.get("q")),
-        symbol: parseOptionalSearch(url.searchParams.get("symbol"), 20),
-        name: parseOptionalSearch(url.searchParams.get("name")),
-      }),
-    );
+    const params = {
+      offset,
+      limit,
+      sort: parseSymbolsSort(url.searchParams.get("sort")),
+      exchange: parseExchangeFilter(url.searchParams.get("exchange")),
+      q: parseOptionalSearch(url.searchParams.get("q")),
+      symbol: parseOptionalSearch(url.searchParams.get("symbol"), 20),
+      name: parseOptionalSearch(url.searchParams.get("name")),
+    };
+    const canonical = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v !== undefined) canonical.set(k, String(v));
+    const key = new Request(`${url.origin}/api/symbols?${canonical}`);
+    return cachedJson(ctx, key, SYMBOLS_MAX_AGE_SECONDS, () => listSymbolsCatalog(env, ctx, params));
   }
 
   // POST /api/watchlists

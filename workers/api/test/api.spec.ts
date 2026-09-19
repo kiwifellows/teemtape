@@ -33,6 +33,24 @@ describe("teemtape API", () => {
     expect(data.quotes.map((q) => q.symbol)).toEqual(["AAPL", "NVDA"]);
   });
 
+  it("serves quotes from the edge cache for the delay window", async () => {
+    const first = await SELF.fetch(`${BASE}/api/quotes?symbols=AAPL,MSFT`);
+    expect(first.status).toBe(200);
+    expect(first.headers.get("cache-control")).toBe("public, max-age=60");
+    const firstBody = await first.text();
+
+    // Same normalised symbol list → same cache entry, byte-identical body
+    // (including cachedAt), without touching KV or a provider again.
+    const second = await SELF.fetch(`${BASE}/api/quotes?symbols=aapl,msft`);
+    expect(await second.text()).toBe(firstBody);
+    const key = new Request(`${BASE}/api/quotes?symbols=AAPL,MSFT`);
+    expect(await caches.default.match(key)).toBeDefined();
+
+    // A different list is a different entry.
+    const other = await SELF.fetch(`${BASE}/api/quotes?symbols=MSFT,AAPL`);
+    expect(await other.text()).not.toBe(firstBody);
+  });
+
   it("rejects an empty symbols query", async () => {
     const res = await SELF.fetch(`${BASE}/api/quotes`);
     expect(res.status).toBe(400);

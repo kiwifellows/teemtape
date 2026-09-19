@@ -117,12 +117,21 @@ suffix elsewhere (`FPH.NZ`, `BHP.AX`, `0700.HK`) — with `base`, `suffix`,
 suffix is part of the identity and search returns every listing a bare code
 matches, exact-base first.
 
-The Worker only **reads** this table. It is filled out-of-band by
+The Worker never **writes** this table. It is filled out-of-band by
 `packages/symbols-sync` (exchange listings → `teemtape.symbol.v1` NDJSON →
 idempotent SQL → `wrangler d1 execute`), run fortnightly or on demand by
 `.github/workflows/sync-symbols.yml`. Sources are the exchanges' and the
 SEC's own public listing files; Yahoo is never a catalog source. Full detail:
 [`docs/plans/multi-market.md`](plans/multi-market.md).
+
+Nor does the Worker normally **read** it: substring search over the table is
+two full scans per keystroke, so the same workflow publishes the imported
+table as a `teemtape.catalog.v1` snapshot (~1 MB JSON, ~235 KB gzipped, KV key
+`symbols:catalog:v1`). `workers/api/src/catalog.ts` parses it once per isolate,
+re-reads it hourly, and answers `GET /api/symbols` from memory in well under a
+millisecond; responses are edge-cached for an hour. The D1 query in
+`symbols.ts` is the fallback until the first sync run and the reference for the
+search semantics — the test suite runs both backends against the same cases.
 
 ## Share links (anonymous MD5 token)
 
@@ -151,26 +160,35 @@ The default is `QUOTES_PROVIDER="yahoo,stooq,sample"`. Add `polygon` to the list
 
 ### When are external APIs called?
 
-External quote APIs (Yahoo, Stooq, Polygon) are called **only on a KV cache miss**.
+External quote APIs (Yahoo, Stooq, Polygon) are called **only on a KV cache miss**,
+and KV is consulted only when the whole response misses the edge cache.
 
 ```
 GET /api/quotes?symbols=AAPL,GOOG
          │
          ▼
-  For each symbol:
-    Check KV key "quote:v2:{symbol}"
+  Edge Cache API, key = normalised symbol list, max-age = QUOTE_DELAY_SECONDS
          │
     ┌────┴────┐
-    │ HIT     │ → return cached Quote (no external call)
+    │ HIT     │ → return the cached response (no KV, no external call, no charge)
     └────┬────┘
          │ MISS
          ▼
+  One bulk KV read for every "quote:v2:{symbol}" key
+         │
+  For each symbol that missed:
     Try providers in order (yahoo → stooq → polygon → sample)
     First success → write to KV with QUOTE_CACHE_TTL_SECONDS TTL
          │
          ▼
-    Return Quote
+    Return quotes with `cache-control: public, max-age=<delay>`
 ```
+
+Quotes are ~`QUOTE_DELAY_SECONDS` stale by design, so caching the finished
+response for the same window is invisible to callers while making repeat views
+of a popular list free. The header also lets browsers and polling agents reuse
+the body locally. Cache API entries are per Cloudflare data centre; KV is the
+global layer beneath it.
 
 The key design point: **the cache is shared across all callers**. If user1
 requests GOOG at 8:20 am and user2 requests GOOG at 8:24 am, the second request
@@ -202,27 +220,33 @@ This is **not per-user** — it is a global, shared cache.
 Each cached quote includes a `cachedAt` ISO timestamp so clients can show
 "price cached at 8:20:14 am" alongside the delayed `asOf` time.
 
-Rate-limit counters also live in the same KV namespace under the `rl:` prefix
-(see [API guardrails](#api-guardrails) below). Keys are short-lived (120 s TTL)
-and logically separate from quote data.
+The same namespace also holds the short-lived authorisation link cache
+(`authz:v1:{token}`, 60 s) described in `docs/authz-contract.md`. Rate-limit
+counters are **not** in KV (see below).
 
 ## API guardrails
 
 The API is intentionally public (no user accounts, anonymous notes). The
 following controls prevent abuse:
 
-### 1. IP rate limiting (default: 60 req/min per IP)
+### 1. IP rate limiting (60 req/min per IP)
 
-Every request (except `/health` and `OPTIONS`) passes through a KV-backed
-sliding-window rate limiter in `workers/api/src/rate-limit.ts`.
+Every request (except `/health` and `OPTIONS`) passes through the Workers
+[Rate Limiting binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)
+(`RATE_LIMITER`, `workers/api/src/rate-limit.ts`), keyed by client IP. The
+counters live in memory at the edge, so limiting costs no KV or D1 operations
+— an earlier KV-backed counter did one read and one write per request, which
+on the Free plan's 1,000 KV writes/day (shared account-wide with teemtape-pro)
+could take the API down after ~1,000 calls.
 
-| Setting | Default | How to change |
-|---------|---------|---------------|
-| `RATE_LIMIT_RPM` | `60` | Set in `wrangler.toml` `[vars]` (or `wrangler secret put` for prod) |
-| Disable | — | Set `RATE_LIMIT_RPM=0` |
+| Setting | Where |
+|---------|-------|
+| Limit and period | `[[ratelimits]]` / `[[env.production.ratelimits]]` in `wrangler.toml` (`simple = { limit = 60, period = 60 }`; period must be 10 or 60) |
+| Disable | Remove the binding — `RATE_LIMITER` is optional in `Env` |
 
-When exceeded the API returns `429 Too Many Requests` with a `Retry-After`
-header (seconds until the current minute window resets).
+When exceeded the API returns `429 Too Many Requests` with `Retry-After: 60`
+(the binding does not expose the position within the window, so the period is
+reported).
 
 Cloudflare Workers also sit behind Cloudflare's network, which provides
 additional DDoS protection and connection limiting at the edge — before requests

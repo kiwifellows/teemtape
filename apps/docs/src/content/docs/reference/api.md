@@ -156,8 +156,10 @@ Controlled by the `QUOTES_PROVIDER` variable on the Worker:
   the `POLYGON_API_KEY` secret; falls back to sample data per-symbol if a fetch
   fails.
 
-Quotes are cached in KV for the delay window (`QUOTE_DELAY_SECONDS`, minimum 60s)
-to respect free-tier rate limits.
+Quotes are cached in KV (`QUOTE_CACHE_TTL_SECONDS`, default 5 min, shared by
+every caller) to respect free-tier rate limits, and finished responses are held
+in the edge Cache API for the delay window (`QUOTE_DELAY_SECONDS`, served with
+`cache-control: public, max-age=<delay>`).
 
 ## Symbols catalog sync
 
@@ -171,6 +173,9 @@ from Yahoo Finance.
 In production this is the **Sync symbols catalog** GitHub workflow: it runs
 on the 1st and 15th of each month and can be started by hand with a custom
 market list (or as a dry run that only uploads the NDJSON/SQL artifacts).
+After importing, it publishes the table as a compact JSON snapshot to KV; the
+Worker serves `GET /api/symbols` from that snapshot in memory and edge-caches
+responses for an hour, so a fresh catalog is fully visible within ~2 hours.
 
 Locally:
 

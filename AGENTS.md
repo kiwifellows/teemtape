@@ -128,9 +128,11 @@ cd workers/api && npx wrangler deploy --dry-run --env production
   and the workflow treats it as success.
 - **Symbols catalog**: `sync-symbols.yml` (1st and 15th of the month, or
   *Run workflow* with a `markets` list / `dry_run`) builds
-  `packages/symbols-sync`, fetches each market's listing, validates, and
-  applies the SQL with `wrangler d1 execute --remote`. The Worker has no
-  cron. After a deploy that adds a market, run it by hand once.
+  `packages/symbols-sync`, fetches each market's listing, validates, applies
+  the SQL with `wrangler d1 execute --remote`, then publishes the table as
+  the `teemtape.catalog.v1` snapshot to KV (`symbols:catalog:v1`) that the
+  Worker serves `/api/symbols` from in memory (D1 is only the fallback). The
+  Worker has no cron. After a deploy that adds a market, run it by hand once.
 - Secrets in GitHub Actions: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
   `POLYGON_API_KEY`.
 

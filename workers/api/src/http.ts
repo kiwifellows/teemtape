@@ -11,6 +11,30 @@ export function json(data: unknown, status = 200, extraHeaders?: Record<string, 
   });
 }
 
+/**
+ * A JSON response served through the edge Cache API for `maxAge` seconds
+ * (0 = no caching, sent with `no-store`). `key` must be a canonical request
+ * for the data — build it from the *parsed* inputs so equivalent spellings
+ * of a query share one entry. Cache API operations are free and per data
+ * centre; the `cache-control` header also lets browsers and polling agents
+ * reuse the body without a round trip.
+ */
+export async function cachedJson(
+  ctx: ExecutionContext,
+  key: Request,
+  maxAge: number,
+  produce: () => Promise<unknown>,
+): Promise<Response> {
+  if (!(maxAge > 0)) return json(await produce(), 200, { "cache-control": "no-store" });
+
+  const hit = await caches.default.match(key);
+  if (hit) return hit;
+
+  const response = json(await produce(), 200, { "cache-control": `public, max-age=${maxAge}` });
+  ctx.waitUntil(caches.default.put(key, response.clone()));
+  return response;
+}
+
 export function error(
   message: string,
   status = 400,

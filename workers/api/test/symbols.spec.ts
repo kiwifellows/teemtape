@@ -1,5 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
+import { CATALOG_KV_KEY, resetCatalogCache } from "../src/catalog.js";
 
 const BASE = "https://api.test";
 const SYNCED_AT = "2026-01-01T00:00:00.000Z";
@@ -23,7 +24,9 @@ const COLLISION_ROWS = [
   ["FPH.NZ", "FPH", "NZ", "NZX", "XNZE", "NZD", "NZ", "Fisher & Paykel Healthcare", "NZFAPE0001S2", null],
 ] as const;
 
-async function seedSymbols(rows: readonly (readonly (string | number | null)[])[] = ROWS): Promise<void> {
+type Row = readonly (string | number | null)[];
+
+async function seedTable(rows: readonly Row[]): Promise<void> {
   for (const row of rows) {
     await env.DB.prepare(
       `INSERT INTO symbols (ticker, base, suffix, exchange_code, mic, currency, country, title, isin, cik_str, source, synced_at)
@@ -34,10 +37,35 @@ async function seedSymbols(rows: readonly (readonly (string | number | null)[])[
   }
 }
 
-describe("symbols catalog API", () => {
+// What the sync workflow publishes after an import (packages/symbols-sync
+// `snapshot`): the rows the table holds, as [ticker, exchange, mic, title, isin, cik].
+const seededSnapshot: Row[] = [];
+async function seedSnapshot(rows: readonly Row[]): Promise<void> {
+  seededSnapshot.push(...rows);
+  const snapshot = {
+    schema: "teemtape.catalog.v1",
+    generatedAt: SYNCED_AT,
+    count: seededSnapshot.length,
+    columns: ["ticker", "exchange", "mic", "title", "isin", "cikStr"],
+    rows: [...seededSnapshot]
+      .sort((a, b) => ((a[0] as string) < (b[0] as string) ? -1 : 1))
+      .map((r) => [r[0], r[3], r[4], r[7], r[8], r[9]]),
+  };
+  await env.QUOTES_CACHE.put(CATALOG_KV_KEY, JSON.stringify(snapshot));
+}
+
+// The same contract must hold whether /api/symbols answers from the in-memory
+// snapshot (production, once the workflow has run) or from the D1 table (the
+// fallback before that).
+describe.each([
+  ["KV snapshot", seedSnapshot],
+  ["D1 table", seedTable],
+])("symbols catalog API (%s)", (_backend, seedSymbols) => {
   beforeEach(async () => {
     await env.DB.prepare("DELETE FROM symbols").run();
-    await seedSymbols();
+    seededSnapshot.length = 0;
+    resetCatalogCache();
+    await seedSymbols(ROWS);
   });
 
   it("lists symbols alphabetically by ticker with paging", async () => {
@@ -139,5 +167,36 @@ describe("symbols catalog API", () => {
   it("rejects invalid paging", async () => {
     const res = await SELF.fetch(`${BASE}/api/symbols?offset=-1`);
     expect(res.status).toBe(400);
+  });
+});
+
+describe("symbols catalog backend", () => {
+  beforeEach(async () => {
+    await env.DB.prepare("DELETE FROM symbols").run();
+    seededSnapshot.length = 0;
+    resetCatalogCache();
+  });
+
+  it("prefers the published snapshot over the table, and falls back without one", async () => {
+    await seedTable(ROWS);
+    await seedSnapshot(COLLISION_ROWS);
+    const fromSnapshot = await body<{ total: number; symbols: Array<{ ticker: string }> }>(
+      await SELF.fetch(`${BASE}/api/symbols?limit=100`),
+    );
+    expect(fromSnapshot.symbols.map((s) => s.ticker)).toEqual(["AMP", "AMP.AX", "FPH.NZ"]);
+
+    await env.QUOTES_CACHE.delete(CATALOG_KV_KEY);
+    resetCatalogCache();
+    // A different query, so the edge cache entry above is not what answers.
+    const fromTable = await body<{ total: number }>(await SELF.fetch(`${BASE}/api/symbols?limit=50`));
+    expect(fromTable.total).toBe(4);
+  });
+
+  it("edge-caches responses for an hour, keyed on the parsed query", async () => {
+    await seedSnapshot(ROWS);
+    const res = await SELF.fetch(`${BASE}/api/symbols?symbol=nv`);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=3600");
+    const key = new Request(`${BASE}/api/symbols?offset=0&limit=100&sort=ticker&symbol=nv`);
+    expect(await caches.default.match(key)).toBeDefined();
   });
 });

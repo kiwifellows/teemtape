@@ -1,4 +1,5 @@
 import { findMarket, type SymbolEntry, type SymbolsListResponse } from "@teemtape/api-client";
+import { loadCatalog, searchCatalog } from "./catalog.js";
 import type { Env } from "./env.js";
 
 export interface SymbolsListParams {
@@ -57,8 +58,23 @@ function buildWhere(params: SymbolsListParams): WhereClause {
  * A bare query such as "AMP" matches every listing with that exchange-local
  * code (`AMP`, `AMP.AX`), and those exact-base rows sort first so the
  * caller can see the collision instead of silently getting the US one.
+ *
+ * Served from the in-memory snapshot (catalog.ts) whenever one has been
+ * published; the D1 query below is the fallback until the first sync run
+ * and the reference for the search semantics.
  */
-export async function listSymbolsCatalog(env: Env, params: SymbolsListParams): Promise<SymbolsListResponse> {
+export async function listSymbolsCatalog(
+  env: Env,
+  ctx: ExecutionContext,
+  params: SymbolsListParams,
+): Promise<SymbolsListResponse> {
+  const catalog = await loadCatalog(env, ctx);
+  if (catalog) return searchCatalog(catalog, params);
+  return querySymbolsTable(env, params);
+}
+
+/** The D1 version of the search: two full scans per call, so only a fallback. */
+async function querySymbolsTable(env: Env, params: SymbolsListParams): Promise<SymbolsListResponse> {
   const where = buildWhere(params);
   const orderBy = params.sort === "title" ? "title ASC, ticker ASC" : "ticker ASC";
 

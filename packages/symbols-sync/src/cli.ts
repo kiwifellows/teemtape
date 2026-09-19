@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { MARKETS } from "@teemtape/api-client";
 import { Command } from "commander";
 import { ADAPTERS } from "./adapters/index.js";
+import { CATALOG_KV_KEY, toCatalogSnapshot } from "./catalog.js";
 import { parseNdjson, toNdjson } from "./ndjson.js";
 import { dedupe, type SymbolRecord } from "./schema.js";
 import { CURRENT_ROWS_SQL, planImport, toImportSql, type CurrentRow } from "./sql.js";
@@ -13,6 +14,8 @@ import { CURRENT_ROWS_SQL, planImport, toImportSql, type CurrentRow } from "./sq
  *   teemtape-symbols fetch --market NZX --out out/NZX.ndjson
  *   teemtape-symbols import out/*.ndjson --sql out/symbols.sql
  *   wrangler d1 execute teemtape-db --remote --file out/symbols.sql
+ *   teemtape-symbols snapshot out/after.json --out out/catalog.json
+ *   wrangler kv key put symbols:catalog:v1 --path out/catalog.json --binding QUOTES_CACHE
  *
  * .github/workflows/sync-symbols.yml runs exactly this fortnightly and on demand.
  */
@@ -102,6 +105,18 @@ program
         ? `${stamped.length} symbols (${markets}): ${plan.upserts.length} to upsert, ${plan.deletes.length} to delete, ${plan.unchanged} unchanged → ${opts.sql}\n`
         : `${stamped.length} symbols (${markets}) → ${opts.sql} (full rewrite; pass --current for a diff)\n`,
     );
+  });
+
+program
+  .command("snapshot")
+  .description(`Render the live table as the teemtape.catalog.v1 serving snapshot (KV key ${CATALOG_KV_KEY})`)
+  .argument("<current>", `live rows as JSON (\`wrangler d1 execute … --json --command "${CURRENT_ROWS_SQL}"\`)`)
+  .requiredOption("--out <file>", "JSON output path")
+  .action(async (current: string, opts: { out: string }) => {
+    const rows = parseCurrent(await readFile(current, "utf8"));
+    const snapshot = toCatalogSnapshot(rows);
+    await writeFile(opts.out, JSON.stringify(snapshot), "utf8");
+    process.stderr.write(`${snapshot.count} symbols → ${opts.out}\n`);
   });
 
 /** Accept a bare row array or wrangler's `d1 execute --json` envelope (`[{ results: [...] }]`). */

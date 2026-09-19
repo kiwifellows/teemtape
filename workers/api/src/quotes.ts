@@ -250,28 +250,21 @@ async function fetchFromProvider(
   }
 }
 
+function cacheKey(symbol: string): string {
+  return `quote:${CACHE_KEY_VERSION}:${symbol}`;
+}
+
 /**
- * Fetch a quote for one symbol, trying providers in priority order.
- * The first successful result is cached in KV for `cacheTtlSeconds`.
- *
- * Cache key: `quote:v2:{symbol}` — shared across all callers.
- * This means user1 requesting AAPL at 8:20 am and user2 requesting AAPL at
- * 8:24 am both receive the same cached quote (assuming a 5-minute TTL).
+ * Fetch a quote for one symbol that missed the cache, trying providers in
+ * priority order. The first successful result is cached in KV for `ttl`.
  */
-async function quoteFor(
+async function fetchAndCache(
   env: Env,
   symbol: string,
   providers: QuoteProvider[],
   delay: number,
   ttl: number,
-): Promise<{ quote: Quote; provider: QuoteProvider; fromCache: boolean }> {
-  const cacheKey = `quote:${CACHE_KEY_VERSION}:${symbol}`;
-
-  const cached = await env.QUOTES_CACHE.get(cacheKey, "json");
-  if (cached) {
-    return { quote: cached as Quote, provider: "sample", fromCache: true };
-  }
-
+): Promise<{ quote: Quote; provider: QuoteProvider }> {
   let lastErr: unknown;
   for (const provider of providers) {
     try {
@@ -280,10 +273,10 @@ async function quoteFor(
       // batch share a consistent timestamp.
       const now = new Date().toISOString();
       const toStore: Quote = { ...quote, cachedAt: now };
-      await env.QUOTES_CACHE.put(cacheKey, JSON.stringify(toStore), {
+      await env.QUOTES_CACHE.put(cacheKey(symbol), JSON.stringify(toStore), {
         expirationTtl: ttl,
       });
-      return { quote: toStore, provider, fromCache: false };
+      return { quote: toStore, provider };
     } catch (err) {
       console.warn(`quotes: provider "${provider}" failed for ${symbol}:`, err);
       lastErr = err;
@@ -299,22 +292,43 @@ async function quoteFor(
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Get delayed quotes for a list of symbols. */
+/**
+ * Get delayed quotes for a list of symbols.
+ *
+ * Cache key per symbol: `quote:v2:{symbol}` — shared across all callers, so
+ * user1 requesting AAPL at 8:20 am and user2 at 8:24 am both receive the same
+ * cached quote (with the default 5-minute TTL).
+ *
+ * All symbols are looked up in one bulk KV read (one operation, one
+ * subrequest) rather than one read per symbol; only the misses go upstream.
+ */
 export async function getQuotes(env: Env, symbols: string[]): Promise<QuotesResponse> {
   const delay = delaySeconds(env);
   const ttl = cacheTtlSeconds(env);
   const providers = effectiveProviders(env);
 
-  const results = await Promise.all(symbols.map((s) => quoteFor(env, s, providers, delay, ttl)));
+  const cached = await env.QUOTES_CACHE.get<Quote>(
+    symbols.map((s) => cacheKey(s)),
+    "json",
+  );
 
-  // Report the first non-cached provider used (or "sample" if all came from cache).
-  const freshResult = results.find((r) => !r.fromCache);
-  const source = freshResult?.provider ?? providers[0] ?? "sample";
+  let source: QuoteProvider | undefined;
+  const quotes = await Promise.all(
+    symbols.map(async (symbol) => {
+      const hit = cached.get(cacheKey(symbol));
+      if (hit) return hit;
+      const fresh = await fetchAndCache(env, symbol, providers, delay, ttl);
+      // Report the first provider that actually served a request.
+      source ??= fresh.provider;
+      return fresh.quote;
+    }),
+  );
 
   return {
-    quotes: results.map((r) => r.quote),
+    quotes,
     delayedSeconds: delay,
-    source,
+    // Nothing fetched (all cache hits) → report the primary provider, as before.
+    source: source ?? providers[0] ?? "sample",
     cacheTtlSeconds: ttl,
   };
 }

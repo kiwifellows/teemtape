@@ -78,7 +78,10 @@ The Worker has **no cron** and never fetches listings. The `symbols` table is
 filled by `packages/symbols-sync` (exchange / SEC listing files →
 `teemtape.symbol.v1` NDJSON → idempotent SQL) and applied with
 `wrangler d1 execute`. In production the *Sync symbols catalog* GitHub
-workflow does this on the 1st and 15th of each month, or on demand.
+workflow does this on the 1st and 15th of each month, or on demand, and then
+publishes the table as a `teemtape.catalog.v1` snapshot to the KV key
+`symbols:catalog:v1`; `/api/symbols` is answered from that snapshot in memory
+(`src/catalog.ts`) and only falls back to querying D1 while the key is absent.
 
 Locally, after `npm run migrate:local`:
 
@@ -88,6 +91,10 @@ node packages/symbols-sync/dist/cli.js fetch --market US  --out out/US.ndjson
 node packages/symbols-sync/dist/cli.js fetch --market NZX --out out/NZX.ndjson
 node packages/symbols-sync/dist/cli.js import out/*.ndjson --sql out/symbols.sql
 cd workers/api && npx wrangler d1 execute teemtape-db --local --file ../../out/symbols.sql
+# optional: serve search from the snapshot locally too
+npx wrangler d1 execute teemtape-db --local --json --command "SELECT ticker, base, suffix, exchange_code, mic, currency, country, title, isin, cik_str, source FROM symbols" > ../../out/after.json
+node ../../packages/symbols-sync/dist/cli.js snapshot ../../out/after.json --out ../../out/catalog.json
+npx wrangler kv key put symbols:catalog:v1 --path ../../out/catalog.json --binding QUOTES_CACHE --local
 ```
 
 Then verify:
@@ -108,8 +115,10 @@ Controlled by the `QUOTES_PROVIDER` var:
 - `polygon` — fetches the Polygon free-tier previous-day aggregate. Requires the
   `POLYGON_API_KEY` secret; falls back to sample data per-symbol if a fetch fails.
 
-Quotes are cached in KV for the delay window (`QUOTE_DELAY_SECONDS`, min 60s) to
-respect free-tier rate limits.
+Quotes are cached in KV (`QUOTE_CACHE_TTL_SECONDS`, default 5 min, shared by
+every caller) to respect free-tier rate limits, and finished responses are held
+in the edge Cache API for the delay window (`QUOTE_DELAY_SECONDS`, served with
+`cache-control: public, max-age=<delay>`).
 
 ## Configuration & secrets
 

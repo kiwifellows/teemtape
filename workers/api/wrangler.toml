@@ -34,8 +34,6 @@ QUOTE_DELAY_SECONDS = "60"          # intentionally delayed ~1 minute
 # All callers within this window share the same cached value — e.g. user1 at
 # 8:20 am and user2 at 8:24 am both receive the same GOOG quote from cache.
 QUOTE_CACHE_TTL_SECONDS = "300"
-# IP rate limit: max requests per minute per caller (0 = disabled).
-RATE_LIMIT_RPM = "60"
 WEB_URL = "http://localhost:5173"   # used to build share links
 # The symbols catalog (D1 table `symbols`) is NOT filled by this Worker: the
 # fortnightly/manual GitHub workflow sync-symbols.yml runs packages/symbols-sync
@@ -58,6 +56,16 @@ migrations_dir = "migrations"
 binding = "QUOTES_CACHE"
 id = "41d888270da045619243fce144418046"
 
+# Per-IP rate limit (src/rate-limit.ts). Counters live in memory at the edge:
+# no KV/D1 operations, no charge. `namespace_id` is an arbitrary integer that
+# must be unique per rate-limit config within the account (teemtape-pro must
+# pick different ones). `period` may only be 10 or 60. Not inherited by
+# environments — keep the production block below in step.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }
+
 # --- Production environment -------------------------------------------------
 [env.production]
 workers_dev = false
@@ -73,7 +81,6 @@ enabled = true
 QUOTES_PROVIDER = "yahoo,polygon,sample"
 QUOTE_DELAY_SECONDS = "60"
 QUOTE_CACHE_TTL_SECONDS = "300"
-RATE_LIMIT_RPM = "60"
 WEB_URL = "https://www.teemtape.com"
 CORS_ORIGINS = "https://teemtape.com,https://www.teemtape.com"
 DASHBOARD_URL = "https://app.teemtape.com"
@@ -90,6 +97,11 @@ migrations_dir = "migrations"
 [[env.production.kv_namespaces]]
 binding = "QUOTES_CACHE"
 id = "41d888270da045619243fce144418046"
+
+[[env.production.ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
 
 # Authorisation hook — the private teemtape-pro Worker
 # (github.com/kiwifellows/teemtape-pro, app.teemtape.com). It exposes the hook

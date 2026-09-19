@@ -3,11 +3,18 @@ export interface Env {
   /** D1 database for watchlists + notes. */
   DB: D1Database;
   /**
-   * KV namespace for two purposes:
-   *  1. Quote cache: keys prefixed `quote:v2:{symbol}`, TTL = QUOTE_CACHE_TTL_SECONDS.
-   *  2. Rate-limit counters: keys prefixed `rl:{ip}:{window}`, TTL = 120s.
+   * KV namespace holding the shared quote cache (keys `quote:v2:{symbol}`,
+   * TTL = QUOTE_CACHE_TTL_SECONDS), the short-lived authz link cache
+   * (`authz:v1:{token}`, see authz.ts) and the symbols catalog snapshot
+   * (`symbols:catalog:v1`, written by the sync workflow, see catalog.ts).
    */
   QUOTES_CACHE: KVNamespace;
+  /**
+   * Workers Rate Limiting binding (`[[ratelimits]]` in wrangler.toml), keyed
+   * by client IP. The limit and period live on the binding. Optional: leave
+   * it out to disable rate limiting.
+   */
+  RATE_LIMITER?: RateLimit;
 
   /**
    * Ordered, comma-separated list of quote providers to try.
@@ -26,17 +33,17 @@ export interface Env {
    */
   QUOTE_CACHE_TTL_SECONDS?: string;
   /**
-   * Max requests per minute per client IP (string in vars). 0 = disabled.
-   * Enforced by a KV-backed sliding window. Default 60.
-   */
-  RATE_LIMIT_RPM?: string;
-  /**
    * Optional static API key for request authentication.
    * When set, every API request (except /health) must include the header:
    *   X-Api-Key: <value>
    * Set via `wrangler secret put API_KEY` — never commit the value.
    */
   API_KEY?: string;
+  /**
+   * How long an isolate keeps its in-memory symbols catalog before re-reading
+   * the KV snapshot (string in vars). Default 3600. 0 = re-read every request.
+   */
+  SYMBOLS_CATALOG_REFRESH_SECONDS?: string;
   /** Web app base URL, used to build share links. */
   WEB_URL?: string;
 
