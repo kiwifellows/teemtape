@@ -14,9 +14,9 @@ import {
   getWatchlist,
 } from "./repo.js";
 import { listSymbolsCatalog } from "./symbols.js";
-import { syncSymbols } from "./sync.js";
 import {
   parseAgentSymbolLimit,
+  parseExchangeFilter,
   parseHandle,
   parseNoteBody,
   parseOptionalHandle,
@@ -65,7 +65,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
     return json(await getQuotes(env, symbols));
   }
 
-  // GET /api/symbols?offset=0&limit=100&sort=ticker|title&q=&symbol=&name=
+  // GET /api/symbols?offset=0&limit=100&sort=ticker|title&q=&symbol=&name=&exchange=
   if (path === "/api/symbols" && method === "GET") {
     const { offset, limit } = parseSymbolsPagination(url.searchParams);
     return json(
@@ -73,6 +73,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
         offset,
         limit,
         sort: parseSymbolsSort(url.searchParams.get("sort")),
+        exchange: parseExchangeFilter(url.searchParams.get("exchange")),
         q: parseOptionalSearch(url.searchParams.get("q")),
         symbol: parseOptionalSearch(url.searchParams.get("symbol"), 20),
         name: parseOptionalSearch(url.searchParams.get("name")),
@@ -167,15 +168,5 @@ export default {
       }
     }
     return applyCors(response, request, env.CORS_ORIGINS);
-  },
-
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
-    try {
-      const result = await syncSymbols(env);
-      console.log("symbols sync complete", result);
-    } catch (err) {
-      console.error("symbols sync failed", err);
-      throw err;
-    }
   },
 } satisfies ExportedHandler<Env>;

@@ -57,9 +57,6 @@ export interface Env {
    */
   CORS_ORIGINS?: string;
 
-  /** Descriptive User-Agent for the SEC symbols sync cron (fair-access policy). */
-  SEC_USER_AGENT: string;
-
   /** Secret — local: `workers/api/.dev.vars`; deployed: `npx wrangler secret put`. */
   POLYGON_API_KEY?: string;
 }

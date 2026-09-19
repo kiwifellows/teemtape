@@ -1,0 +1,29 @@
+{
+  "name": "@teemtape/symbols-sync",
+  "version": "0.1.4",
+  "private": true,
+  "description": "teemtape symbols pipeline: fetch exchange listings → teemtape.symbol.v1 NDJSON → D1 import SQL.",
+  "license": "MIT",
+  "author": "Benjamin Fellows",
+  "type": "module",
+  "bin": {
+    "teemtape-symbols": "./dist/cli.js"
+  },
+  "scripts": {
+    "prebuild": "npm run build -w @teemtape/api-client --prefix ../..",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "pretest": "npm run build",
+    "test": "node --test",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@teemtape/api-client": "^0.1.4",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  }
+}

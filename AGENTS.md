@@ -24,13 +24,16 @@ apps/docs            docs                   Astro/Starlight → docs.teemtape.co
 packages/api-client  @teemtape/api-client   typed client shared by CLI + web (published to npm)
 packages/cli         @teemtape/cli          Commander CLI for humans and agents (published to npm)
 packages/mock-server @teemtape/mock-server  dependency-free in-memory API for local/dev/tests
+packages/symbols-sync @teemtape/symbols-sync symbols pipeline: exchange listings → NDJSON → D1 import SQL (Node, run by CI)
 skills/teemtape-cli                          the agent skill (published to ClawHub)
 docs/                                        architecture, roadmap, plans, market research, authz contract
 ```
 
 Deep dives: `docs/architecture.md` (data model, quotes providers, caching,
 guardrails), `docs/authz-contract.md` (the hook, below), `docs/roadmap.md`
-(original milestones M0–M4), `docs/plans/paid-tier-plan.md` (teemtape Pro).
+(milestones M0–M5), `docs/plans/paid-tier-plan.md` (teemtape Pro),
+`docs/plans/multi-market.md` (canonical symbols, the symbols pipeline, where
+symbol data may and may not come from).
 
 ## The private companion: teemtape-pro
 
@@ -74,6 +77,12 @@ update `docs/authz-contract.md` in the same PR.
 - Anonymous by design: no accounts, no email, tokens are capability
   bearers generated from `crypto.getRandomValues`. Never log or echo a
   watchlist token in chat or output.
+- Symbols are canonical `BASE[.SUFFIX]` strings (`AAPL`, `FPH.NZ`, `BHP.AX`);
+  the suffix ↔ exchange table is `packages/api-client/src/markets.ts` and is
+  the only place to add a market. The symbols catalog comes from exchange /
+  SEC listing files via `packages/symbols-sync` — never from Yahoo, which is
+  only the on-demand delayed-quote provider for the OSS app (and not for
+  Pro). Details and the licensing line: `docs/plans/multi-market.md`.
 - CLI: config precedence flags > env > `~/.config/teemtape/config.json` >
   defaults; `--json` for machine output; secrets masked in `config`.
 - Tests live next to code (`workers/api/test` = Vitest in workerd with
@@ -114,12 +123,21 @@ cd workers/api && npx wrangler deploy --dry-run --env production
   triggers `tag-release.yml` (tag, GitHub release, npm publish of
   `@teemtape/api-client`, `@teemtape/cli`). `publish-skills.yml` pushes the
   skill to ClawHub.
+- **Symbols catalog**: `sync-symbols.yml` (1st and 15th of the month, or
+  *Run workflow* with a `markets` list / `dry_run`) builds
+  `packages/symbols-sync`, fetches each market's listing, validates, and
+  applies the SQL with `wrangler d1 execute --remote`. The Worker has no
+  cron. After a deploy that adds a market, run it by hand once.
 - Secrets in GitHub Actions: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
   `POLYGON_API_KEY`.
 
-## Current state (2026-09-17)
+## Current state (2026-09-19)
 
 - Product: M0–M3 done (API, CLI, desktop + mobile web, docs site, skill).
+- M5 multi-market: canonical symbols, pipeline with `sec`/`nzx`/`asx`/`nse`
+  adapters and the fortnightly workflow are in. Next: run the workflow once
+  after deploy, per-market delay badge, SGX/HKEX/Tokyo adapters
+  (`docs/plans/multi-market.md` §6).
 - teemtape Pro P1 (the hook) merged and deployed, unbound. Plan §5 in
   `docs/plans/paid-tier-plan.md`; market research in `docs/market-research/`.
 - Pending on this side for Pro P2: publish `@teemtape/api-client` ≥ 0.1.5

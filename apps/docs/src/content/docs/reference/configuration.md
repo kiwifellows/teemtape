@@ -55,7 +55,6 @@ Non-secret config lives in `workers/api/wrangler.toml` under `[vars]` and
 | --- | --- |
 | `QUOTES_PROVIDER` | `sample` (default, no key) or `polygon` |
 | `QUOTE_DELAY_SECONDS` | Quote delay / KV cache TTL (minimum 60) |
-| `SEC_USER_AGENT` | Contact email for the SEC fair-access policy |
 
 ### Secrets
 

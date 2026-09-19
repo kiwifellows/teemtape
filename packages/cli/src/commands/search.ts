@@ -7,9 +7,10 @@ export interface SearchOptions {
   limit?: string;
   offset?: string;
   sort?: "ticker" | "title";
+  exchange?: string;
 }
 
-/** `teemtape search` — find symbols in the SEC catalog by ticker or company name. */
+/** `teemtape search` — find symbols in the catalog by ticker or company name, optionally within one market. */
 export async function searchCommand(
   ctx: Context,
   query: string | undefined,
@@ -31,6 +32,7 @@ export async function searchCommand(
     ...(q ? { q } : {}),
     ...(symbol ? { symbol } : {}),
     ...(name ? { name } : {}),
+    ...(opts.exchange ? { exchange: opts.exchange.trim() } : {}),
     ...(opts.limit !== undefined ? { limit: parsePositiveInt(opts.limit, "limit") } : { limit: 20 }),
     ...(opts.offset !== undefined ? { offset: parsePositiveInt(opts.offset, "offset") } : {}),
     ...(opts.sort ? { sort: opts.sort } : {}),

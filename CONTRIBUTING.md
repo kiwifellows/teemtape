@@ -52,8 +52,8 @@ Sample quotes work with no API key. For live Polygon quotes locally, copy
 `workers/api/.dev.vars.example` to `workers/api/.dev.vars` and set
 `POLYGON_API_KEY`.
 
-See [`workers/api/README.md`](workers/api/README.md) for migrations, SEC symbol
-sync, and deployment details.
+See [`workers/api/README.md`](workers/api/README.md) for migrations, the symbols
+catalog sync, and deployment details.
 
 ### Option B — Mock API (fastest path for CLI-only changes)
 

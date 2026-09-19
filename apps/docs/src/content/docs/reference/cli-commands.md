@@ -42,7 +42,7 @@ teemtape init [--json]
 
 ## search
 
-Search the SEC symbol catalog. Does **not** require a watchlist token.
+Search the symbols catalog (US, NZX, ASX, NSE, …). Does **not** require a watchlist token. Every row includes `exchange` and `currency`; a bare query like `amp` returns both `AMP` (NYSE) and `AMP.AX` (ASX).
 
 ```bash
 teemtape search [QUERY] [options] [--json]
@@ -53,6 +53,7 @@ Options:
   --limit <n>       Max results (default 20, max 100)
   --offset <n>      Skip first n matches (pagination)
   --sort <field>    ticker | title (default: ticker)
+  --exchange <code> Only one market: US, NZX, ASX, NSE, … (aliases such as NASDAQ work)
 ```
 
 Combine `--symbol` and `--name` with AND logic. A positional `QUERY` matches
@@ -71,7 +72,10 @@ Without `--symbols`, it fetches the current watchlist symbols first. With
 
 ## add
 
-Add a ticker to the watchlist. The symbol is normalized to uppercase.
+Add a ticker to the watchlist. The symbol is normalized to its canonical form:
+upper-case, and `EXCHANGE:TICKER` aliases (`asx:bhp`) become the suffixed
+symbol (`BHP.AX`). Non-US listings must carry their suffix — see
+[symbols](/reference/api/#symbols-one-string-one-listing).
 
 ```bash
 teemtape add <SYMBOL> [--json]

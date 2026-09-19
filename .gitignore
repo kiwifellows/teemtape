@@ -13,3 +13,6 @@ coverage/
 
 # local CLI config that may contain a watchlist token
 .config/teemtape/
+
+# symbols pipeline output (NDJSON / SQL); CI uploads it as an artifact
+out/

@@ -20,6 +20,9 @@ teemtape init
 #search your first stock and add to your watchlist
 teemtape search "Space Explo"
 teemtape add SPCX
+#non-US markets carry a suffix (NZX .NZ, ASX .AX, NSE .NS …) so AMP and AMP.AX never mix
+teemtape search fisher --exchange nzx
+teemtape add FPH.NZ
 #list my watchist (all my stocks for this token)
 teemtape list
 #add a note for a stock

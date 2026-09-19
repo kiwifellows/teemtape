@@ -47,3 +47,19 @@ export function seedNotes() {
     { id: "n_0004", token: SEED_TOKEN, symbol: "NVDA", author: "agent-cli", source: "cli", body: "Added to learning watchlist for the demo.", createdAt: iso(180) },
   ];
 }
+
+// A small symbols catalog with one deliberate cross-market collision (AMP is
+// Ameriprise on NYSE and AMP Limited on ASX) so search UX can be exercised
+// without the real pipeline. Shape matches SymbolEntry in @teemtape/api-client.
+export const SEED_SYMBOLS = [
+  { ticker: "AAPL", exchange: "NASDAQ", mic: "XNAS", currency: "USD", country: "US", title: "Apple Inc.", isin: null, cikStr: 320193 },
+  { ticker: "AMD", exchange: "NASDAQ", mic: "XNAS", currency: "USD", country: "US", title: "Advanced Micro Devices", isin: null, cikStr: 2488 },
+  { ticker: "AMP", exchange: "NYSE", mic: "XNYS", currency: "USD", country: "US", title: "Ameriprise Financial Inc", isin: null, cikStr: 820027 },
+  { ticker: "AMP.AX", exchange: "ASX", mic: "XASX", currency: "AUD", country: "AU", title: "AMP Limited", isin: null, cikStr: null },
+  { ticker: "BHP.AX", exchange: "ASX", mic: "XASX", currency: "AUD", country: "AU", title: "BHP Group Limited", isin: null, cikStr: null },
+  { ticker: "FPH.NZ", exchange: "NZX", mic: "XNZE", currency: "NZD", country: "NZ", title: "Fisher & Paykel Healthcare Corporation Limited", isin: "NZFAPE0001S2", cikStr: null },
+  { ticker: "MSFT", exchange: "NASDAQ", mic: "XNAS", currency: "USD", country: "US", title: "Microsoft Corp.", isin: null, cikStr: 789019 },
+  { ticker: "NVDA", exchange: "NASDAQ", mic: "XNAS", currency: "USD", country: "US", title: "NVIDIA Corp.", isin: null, cikStr: 1045810 },
+  { ticker: "RELIANCE.NS", exchange: "NSE", mic: "XNSE", currency: "INR", country: "IN", title: "Reliance Industries Limited", isin: "INE002A01018", cikStr: null },
+  { ticker: "TSLA", exchange: "NASDAQ", mic: "XNAS", currency: "USD", country: "US", title: "Tesla Inc.", isin: null, cikStr: 1318605 },
+];

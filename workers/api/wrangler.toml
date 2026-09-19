@@ -37,7 +37,9 @@ QUOTE_CACHE_TTL_SECONDS = "300"
 # IP rate limit: max requests per minute per caller (0 = disabled).
 RATE_LIMIT_RPM = "60"
 WEB_URL = "http://localhost:5173"   # used to build share links
-SEC_USER_AGENT = "teemtape-api symbols-sync help@teem.cloud"
+# The symbols catalog (D1 table `symbols`) is NOT filled by this Worker: the
+# fortnightly/manual GitHub workflow sync-symbols.yml runs packages/symbols-sync
+# and imports the result with `wrangler d1 execute`. See docs/plans/multi-market.md.
 # Optional authorisation hook (see docs/authz-contract.md). DASHBOARD_URL is
 # returned in 401/403 bodies so clients can tell users where to sign in;
 # CORS_ORIGINS lists browser origins allowed to send cookies. Both are inert
@@ -45,9 +47,6 @@ SEC_USER_AGENT = "teemtape-api symbols-sync help@teem.cloud"
 # DASHBOARD_URL = "http://localhost:5174"
 # CORS_ORIGINS = "http://localhost:5173"
 # AUTHZ_TIMEOUT_MS = "250"
-
-[triggers]
-crons = ["0 */12 * * *"]
 
 [[d1_databases]]
 binding = "DB"
@@ -76,15 +75,11 @@ QUOTE_DELAY_SECONDS = "60"
 QUOTE_CACHE_TTL_SECONDS = "300"
 RATE_LIMIT_RPM = "60"
 WEB_URL = "https://www.teemtape.com"
-SEC_USER_AGENT = "teemtape-api symbols-sync contact@teemtape.com"
 CORS_ORIGINS = "https://teemtape.com,https://www.teemtape.com"
 DASHBOARD_URL = "https://app.teemtape.com"
 # Budget for one AUTHZ call, including the Pro Worker's cold start. Public
 # lists fail open on timeout; restricted ones answer 503, so be generous.
 AUTHZ_TIMEOUT_MS = "1000"
-
-[env.production.triggers]
-crons = ["0 */12 * * *"]
 
 [[env.production.d1_databases]]
 binding = "DB"

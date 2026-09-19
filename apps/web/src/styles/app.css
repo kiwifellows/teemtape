@@ -201,6 +201,20 @@
   margin-right: var(--space-2);
 }
 
+/* Exchange badge: "AMP" on NYSE and "AMP.AX" on ASX are different companies,
+   so every search result names its market. */
+.exchange-badge {
+  display: inline-block;
+  margin-right: var(--space-2);
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

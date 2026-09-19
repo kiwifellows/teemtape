@@ -40,7 +40,8 @@ later commands pick it up automatically.
 ## A typical workflow
 
 ```bash
-# 1. Search the SEC symbol catalog (no token required)
+# 1. Search the symbols catalog (no token required). Results include
+#    exchange + currency; a bare code can match several markets.
 teemtape search nvidia --json
 
 # 2. Add to the watchlist
@@ -61,7 +62,7 @@ teemtape note NVDA --message "Data-center revenue guidance looks strong." --json
 | Command | Token required | Purpose |
 | --- | --- | --- |
 | `init` | No | Create watchlist, save token |
-| `search [QUERY]` | No | Search the SEC ticker/company catalog |
+| `search [QUERY]` | No | Search the ticker/company catalog (US, NZX, ASX, NSE, …); `--exchange` narrows to one market |
 | `list [--symbols A,B]` | Yes* | Delayed quotes for the watchlist or specific symbols |
 | `add <SYMBOL>` | Yes | Add a symbol to the watchlist |
 | `notes <SYMBOL>` | Yes | Read a note thread |

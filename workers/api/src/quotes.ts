@@ -135,6 +135,8 @@ interface YahooChartMeta {
   longName?: string;
   shortName?: string;
   regularMarketTime?: number;
+  currency?: string;
+  exchangeName?: string;
 }
 interface YahooChartResponse {
   chart: {
@@ -177,6 +179,10 @@ async function yahooQuote(symbol: string, delay: number): Promise<Quote> {
     pct: round2(prevClose ? (change / prevClose) * 100 : 0),
     asOf: new Date((meta.regularMarketTime ?? Date.now() / 1000) * 1000 - delay * 1000).toISOString(),
     cachedAt: new Date().toISOString(),
+    // Non-US listings are priced in their home currency (and LSE in pence,
+    // reported as "GBp"); pass it through so the UI never implies USD.
+    ...(meta.currency ? { currency: meta.currency } : {}),
+    ...(meta.exchangeName ? { exchange: meta.exchangeName } : {}),
   };
 }
 

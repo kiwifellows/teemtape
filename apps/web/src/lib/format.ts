@@ -4,6 +4,17 @@ export function fmtPrice(n: number): string {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/**
+ * Price with its currency. USD keeps the familiar "$228.52"; anything else
+ * is prefixed with the ISO code ("NZD 38.10", "GBp 74.20") so a non-US
+ * listing is never mistaken for dollars. Unknown currency → bare number.
+ */
+export function fmtMoney(n: number, currency?: string): string {
+  const price = fmtPrice(n);
+  if (!currency || currency === "USD") return `$${price}`;
+  return `${currency} ${price}`;
+}
+
 export function fmtChange(quote: Pick<Quote, "change" | "pct">): { text: string; direction: "up" | "down" } {
   const sign = quote.change >= 0 ? "+" : "";
   const direction = quote.change >= 0 ? "up" : "down";

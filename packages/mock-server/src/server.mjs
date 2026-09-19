@@ -3,7 +3,7 @@
 
 import { createServer } from "node:http";
 import { randomBytes, randomUUID } from "node:crypto";
-import { BASE_QUOTES, COMPANY_NAMES, seedNotes, seedWatchlists } from "./data.mjs";
+import { BASE_QUOTES, COMPANY_NAMES, SEED_SYMBOLS, seedNotes, seedWatchlists } from "./data.mjs";
 
 export const DELAY_SECONDS = 60;
 
@@ -179,6 +179,31 @@ export function createMockServer(options = {}) {
       const symbols = raw.split(",").map((s) => s.trim()).filter(Boolean);
       if (symbols.length === 0) return send(res, 400, { error: "symbols query param is required" });
       return send(res, 200, { quotes: symbols.map(quoteFor), delayedSeconds: DELAY_SECONDS, source: "mock" });
+    }
+
+    // GET /api/symbols?q=&symbol=&name=&exchange=&offset=&limit=&sort= — same contract as the Worker.
+    if (path === "/api/symbols" && method === "GET") {
+      const like = (value, term) => !term || value.toLowerCase().includes(term.toLowerCase());
+      const q = url.searchParams.get("q") ?? "";
+      const symbol = url.searchParams.get("symbol") ?? "";
+      const name = url.searchParams.get("name") ?? "";
+      const exchange = (url.searchParams.get("exchange") ?? "").toUpperCase();
+      const sort = url.searchParams.get("sort") === "title" ? "title" : "ticker";
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      const limit = Math.min(Number(url.searchParams.get("limit") ?? 100), 100);
+      const exact = (symbol || q).trim().toUpperCase();
+      const matched = SEED_SYMBOLS.filter(
+        (s) =>
+          (like(s.ticker, q) || like(s.title, q)) &&
+          like(s.ticker, symbol) &&
+          like(s.title, name) &&
+          (!exchange || s.exchange === exchange || (exchange === "US" && s.country === "US")),
+      ).sort((a, b) => {
+        // Exact base matches first so "AMP" shows both AMP and AMP.AX at the top.
+        const rank = (s) => (s.ticker.split(".")[0] === exact ? 0 : 1);
+        return rank(a) - rank(b) || (sort === "title" ? a.title.localeCompare(b.title) : a.ticker.localeCompare(b.ticker));
+      });
+      return send(res, 200, { symbols: matched.slice(offset, offset + limit), offset, limit, total: matched.length, sort, ...(exchange ? { exchange } : {}) });
     }
 
     if (path === "/api/whoami" && method === "GET") {

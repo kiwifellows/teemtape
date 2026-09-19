@@ -97,9 +97,10 @@ program
 program
   .command("search")
   .argument("[query]", "search ticker or company name (substring match)")
-  .description("search the SEC symbol catalog by ticker or company name")
+  .description("search the symbols catalog (US, NZX, ASX, NSE, …) by ticker or company name")
   .option("--symbol <text>", "filter by ticker substring only")
   .option("--name <text>", "filter by company name substring only")
+  .option("--exchange <code>", "only one market: US, NZX, ASX, NSE, … (aliases like NASDAQ work)")
   .option("--limit <n>", "max results to return (default 20, max 100)")
   .option("--offset <n>", "skip first n matches (for paging)")
   .option("--sort <field>", "sort by ticker or title", "ticker")
@@ -180,6 +181,9 @@ Examples:
   $ teemtape search nvidia
   $ teemtape search --symbol nv
   $ teemtape search --name microsoft
+  $ teemtape search amp                 # lists AMP (NYSE) and AMP.AX (ASX) — pick one
+  $ teemtape search fisher --exchange nzx
+  $ teemtape add FPH.NZ                 # non-US symbols always carry their suffix
   $ teemtape add NVDA
   $ teemtape list
   $ teemtape notes NVDA

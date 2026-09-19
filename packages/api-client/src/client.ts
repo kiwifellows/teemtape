@@ -101,6 +101,8 @@ export class TeemtapeClient {
     q?: string;
     symbol?: string;
     name?: string;
+    /** Restrict to one market by code or alias, e.g. "NZX", "ASX", "US". */
+    exchange?: string;
   } = {}): Promise<SymbolsListResponse> {
     const search = new URLSearchParams();
     if (params.offset !== undefined) search.set("offset", String(params.offset));
@@ -109,6 +111,7 @@ export class TeemtapeClient {
     if (params.q) search.set("q", params.q);
     if (params.symbol) search.set("symbol", params.symbol);
     if (params.name) search.set("name", params.name);
+    if (params.exchange) search.set("exchange", params.exchange);
     const qs = search.toString();
     return this.request<SymbolsListResponse>(`/api/symbols${qs ? `?${qs}` : ""}`);
   }

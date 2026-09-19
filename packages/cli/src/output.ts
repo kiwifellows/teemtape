@@ -80,11 +80,13 @@ export function printSymbolsTable(res: SymbolsListResponse): void {
     return;
   }
 
-  const header = `${pad("TICKER", 8)}${pad("COMPANY", 40)}`;
+  // Exchange + currency columns exist so a bare query like "AMP" visibly
+  // returns two different companies rather than one ambiguous row.
+  const header = `${pad("SYMBOL", 14)}${pad("EXCHANGE", 10)}${pad("CCY", 5)}${pad("COMPANY", 40)}`;
   process.stdout.write(`${c.dim(header)}\n`);
 
   for (const s of res.symbols) {
-    const row = pad(s.ticker, 8) + pad(truncate(s.title, 39), 40);
+    const row = pad(s.ticker, 14) + pad(s.exchange, 10) + pad(s.currency, 5) + pad(truncate(s.title, 39), 40);
     process.stdout.write(`${row}\n`);
   }
 
