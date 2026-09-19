@@ -121,8 +121,11 @@ cd workers/api && npx wrangler deploy --dry-run --env production
   check; if it fails on a docs-only change, check for stale branches first.
 - **Releases**: `release.yml` (manual, opens a version-bump PR) → merging it
   triggers `tag-release.yml` (tag, GitHub release, npm publish of
-  `@teemtape/api-client`, `@teemtape/cli`). `publish-skills.yml` pushes the
-  skill to ClawHub.
+  `@teemtape/api-client`, `@teemtape/cli`). `publish-skills.yml` runs the
+  `clawhub` CLI on every `skills/*` folder when `main` changes (manual runs
+  dry-run by default). New versions sit in ClawHub moderation for a few
+  minutes before going live; the CLI reports that as `pending-publication`
+  and the workflow treats it as success.
 - **Symbols catalog**: `sync-symbols.yml` (1st and 15th of the month, or
   *Run workflow* with a `markets` list / `dry_run`) builds
   `packages/symbols-sync`, fetches each market's listing, validates, and

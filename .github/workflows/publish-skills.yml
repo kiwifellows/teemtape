@@ -1,5 +1,14 @@
 name: Publish Skills (ClawHub)
 
+# Publishes every skill folder under skills/ to ClawHub with the clawhub CLI.
+#
+# This used to call openclaw/clawhub's reusable skill-publish.yml, but ClawHub
+# now moderates new versions before they go live and the CLI reports that as
+# status "pending-publication". The reusable workflow only knows "unchanged",
+# "would-publish" and "published", so every real publish was marked failed
+# even though the version had been uploaded and went live minutes later.
+# Running the CLI ourselves lets us treat the moderation statuses as success.
+
 on:
   push:
     branches:
@@ -16,14 +25,78 @@ on:
 
 permissions:
   contents: read
-  id-token: write
+
+env:
+  CLAWHUB_VERSION: "0.23.3"
+  DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
 
 jobs:
   publish:
-    uses: openclaw/clawhub/.github/workflows/skill-publish.yml@main
-    with:
-      owner: kiwifellows
-      root: skills
-      dry_run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
-    secrets:
-      clawhub_token: ${{ secrets.CLAWHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Check for a ClawHub token
+        if: env.DRY_RUN != 'true'
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          if [[ -z "$CLAWHUB_TOKEN" ]]; then
+            echo "::error::Real publishes need the CLAWHUB_TOKEN repository secret."
+            exit 1
+          fi
+
+      # The CLI reads its token from a config file; CLAWHUB_CONFIG_PATH points it
+      # at one under RUNNER_TEMP so nothing lands in the checkout.
+      - name: Write ClawHub config
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          jq -n --arg registry https://clawhub.ai --arg token "$CLAWHUB_TOKEN" \
+            '{registry: $registry, token: $token}' > "$RUNNER_TEMP/clawhub-config.json"
+          echo "CLAWHUB_CONFIG_PATH=$RUNNER_TEMP/clawhub-config.json" >> "$GITHUB_ENV"
+
+      - name: Publish skills
+        run: |
+          set -euo pipefail
+          failed=0
+          for folder in skills/*/; do
+            folder="${folder%/}"
+            [[ -f "$folder/SKILL.md" ]] || continue
+
+            args=(publish "$folder" --json --owner kiwifellows --tags latest
+              --source-repo "$GITHUB_REPOSITORY" --source-commit "$GITHUB_SHA"
+              --source-ref "$GITHUB_REF" --source-path "$folder")
+            [[ "$DRY_RUN" == "true" ]] && args+=(--dry-run)
+
+            echo "::group::$folder"
+            if ! out=$(npx --yes "clawhub@$CLAWHUB_VERSION" "${args[@]}"); then
+              echo "::error::clawhub publish failed for $folder"
+              echo "$out"
+              failed=1
+              echo "::endgroup::"
+              continue
+            fi
+            echo "$out"
+            echo "::endgroup::"
+
+            status=$(jq -r '.status' <<<"$out")
+            slug=$(jq -r '.slug' <<<"$out")
+            version=$(jq -r '.version' <<<"$out")
+            case "$status" in
+              unchanged)           echo "$slug@$version is already published" ;;
+              would-publish)       echo "Would publish $slug@$version" ;;
+              published)           echo "Published $slug@$version" ;;
+              pending-publication) echo "Uploaded $slug@$version; it goes live once ClawHub's moderation scan passes" ;;
+              submitted)           echo "Submitted $slug@$version; it needs a ClawHub review before it goes live" ;;
+              *)
+                echo "::error::Unexpected publish status '$status' for $folder"
+                failed=1 ;;
+            esac
+          done
+          exit "$failed"
