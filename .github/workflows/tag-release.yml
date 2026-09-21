@@ -9,11 +9,23 @@ name: Tag and release
 #      refs/tags/* and are NOT subject to branch protection rules, so this works
 #      even though `main` only accepts changes via pull request.
 #   2. Cuts a downloadable GitHub release for that tag.
-#   3. Publishes @teemtape/api-client and @teemtape/cli to npm (with provenance).
+#   3. Publishes @teemtape/api-client and @teemtape/cli to npm (with provenance),
+#      api-client first because the CLI depends on it.
 #
 # The release is keyed off the @teemtape/cli package version: when that version
 # has no matching `v<version>` tag yet, this workflow cuts it. Normal merges that
 # don't bump the version are no-ops because the tag already exists.
+#
+# npm auth is npm Trusted Publishing (OIDC): no token secret. Each package on
+# npmjs.com must list this repo + `tag-release.yml` (+ environment `release`) as
+# a trusted publisher under Package settings → Trusted Publisher. npm's
+# long-lived automation tokens can no longer publish, which is why the old
+# NPM_PACKAGE_TOKEN path was dropped.
+#
+# Re-publishing: if the npm step fails after the tag and release already exist
+# (the push trigger then no-ops because the tag exists), run this workflow
+# manually with `tag` set to that tag. It checks the tag out, builds, and
+# publishes whichever of the two packages npm does not have yet.
 
 on:
   push:
@@ -21,6 +33,12 @@ on:
       - main
     paths:
       - "packages/cli/package.json"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to (re)publish to npm, e.g. v1.0.0. Skips tagging and the GitHub release."
+        type: string
+        required: true
 
 concurrency:
   group: release-tag
@@ -44,7 +62,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ inputs.tag || 'main' }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -57,40 +75,55 @@ jobs:
 
       - name: Determine release version
         id: version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./packages/cli/package.json').version")"
           TAG="v$VERSION"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
+          if [ -n "$INPUT_TAG" ]; then
+            # Manual re-publish of an existing tag: the checkout above already
+            # failed if the tag does not exist. Guard against a tag whose
+            # package.json disagrees with its name.
+            if [ "$INPUT_TAG" != "$TAG" ]; then
+              echo "::error::Tag $INPUT_TAG contains @teemtape/cli version $VERSION (expected ${INPUT_TAG#v})."
+              exit 1
+            fi
+            echo "Re-publishing $TAG to npm (tag and GitHub release left as they are)."
+            echo "cut=false" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists — nothing to release."
-            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "cut=false" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "New version detected: $VERSION (tag $TAG)"
-            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "cut=true" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.publish == 'true' }}
         run: npm ci
 
       - name: Build publishable packages
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.publish == 'true' }}
         run: |
           set -euo pipefail
           npm run build --workspace @teemtape/api-client
           npm run build --workspace @teemtape/cli
 
       - name: Test publishable packages
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.publish == 'true' }}
         run: |
           set -euo pipefail
           npm run test --workspace @teemtape/api-client --if-present
           npm run test --workspace @teemtape/cli --if-present
 
       - name: Create and push tag
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.cut == 'true' }}
         env:
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
@@ -102,7 +135,7 @@ jobs:
           git push origin "$TAG"
 
       - name: Extract release notes from CHANGELOG.md
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.cut == 'true' }}
         env:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
@@ -119,7 +152,7 @@ jobs:
           fi
 
       - name: Create GitHub release
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.cut == 'true' }}
         env:
           # Prefer a PAT (RELEASE_TOKEN) so the published-release event can trigger
           # any downstream release-event workflows. Falls back to the default
@@ -142,18 +175,20 @@ jobs:
               --generate-notes
           fi
 
+      # No NODE_AUTH_TOKEN on the publish steps: npm ≥ 11.5.1 sees the
+      # `id-token: write` OIDC credential and exchanges it with npmjs.com
+      # (trusted publishing). A leftover token env would be used instead and
+      # break the exchange, so keep these steps token-free.
       - name: Publish @teemtape/api-client to npm
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.publish == 'true' }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
           PKG: "@teemtape/api-client"
           VERSION: ${{ steps.version.outputs.version }}
         run: bash scripts/npm-publish.sh
 
       - name: Publish @teemtape/cli to npm
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.publish == 'true' }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
           PKG: "@teemtape/cli"
           VERSION: ${{ steps.version.outputs.version }}
         run: bash scripts/npm-publish.sh
@@ -163,7 +198,7 @@ jobs:
         # "teemtape-released") and re-runs its tests against the new client.
         # Needs PRO_DISPATCH_TOKEN: a fine-grained PAT for kiwifellows/teemtape-pro
         # with Actions: read & write. Skipped silently when it is not set.
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.publish == 'true' }}
         env:
           PRO_DISPATCH_TOKEN: ${{ secrets.PRO_DISPATCH_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
@@ -180,12 +215,16 @@ jobs:
             -d "{\"event_type\":\"teemtape-released\",\"client_payload\":{\"version\":\"$VERSION\"}}"
 
       - name: Summary
-        if: ${{ steps.version.outputs.release == 'true' }}
+        if: ${{ steps.version.outputs.publish == 'true' }}
         run: |
           {
             echo "### Released ${{ steps.version.outputs.tag }}"
             echo
             echo "- Tag: \`${{ steps.version.outputs.tag }}\`"
-            echo "- GitHub release: downloadable from the Releases page"
+            if [ "${{ steps.version.outputs.cut }}" = "true" ]; then
+              echo "- GitHub release: downloadable from the Releases page"
+            else
+              echo "- GitHub release: unchanged (manual re-publish)"
+            fi
             echo "- Published: \`@teemtape/api-client\`, \`@teemtape/cli\`"
           } >> "$GITHUB_STEP_SUMMARY"

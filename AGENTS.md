@@ -121,7 +121,13 @@ cd workers/api && npx wrangler deploy --dry-run --env production
   check; if it fails on a docs-only change, check for stale branches first.
 - **Releases**: `release.yml` (manual, opens a version-bump PR) → merging it
   triggers `tag-release.yml` (tag, GitHub release, npm publish of
-  `@teemtape/api-client`, `@teemtape/cli`). `publish-skills.yml` runs the
+  `@teemtape/api-client` then `@teemtape/cli`). npm auth is **Trusted
+  Publishing (OIDC)**, no token secret: each package on npmjs.com lists this
+  repo + `tag-release.yml` + environment `release` as a trusted publisher. If
+  the npm step fails after the tag exists, *Run workflow* on `tag-release.yml`
+  with that `tag` to re-publish (skips tag/release, publishes what npm lacks).
+  The Worker (`@teemtape/api`) is private and is not published; it ships via
+  `deploy-api.yml` on the same merge. `publish-skills.yml` runs the
   `clawhub` CLI on every `skills/*` folder when `main` changes (manual runs
   dry-run by default). New versions sit in ClawHub moderation for a few
   minutes before going live; the CLI reports that as `pending-publication`
@@ -134,7 +140,8 @@ cd workers/api && npx wrangler deploy --dry-run --env production
   Worker serves `/api/symbols` from in memory (D1 is only the fallback). The
   Worker has no cron. After a deploy that adds a market, run it by hand once.
 - Secrets in GitHub Actions: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
-  `POLYGON_API_KEY`.
+  `POLYGON_API_KEY`; optional `RELEASE_TOKEN`, `PRO_DISPATCH_TOKEN`. No npm
+  token (see Releases).
 
 ## Current state (2026-09-19)
 
@@ -145,10 +152,12 @@ cd workers/api && npx wrangler deploy --dry-run --env production
   (`docs/plans/multi-market.md` §6).
 - teemtape Pro P1 (the hook) merged and deployed, unbound. Plan §5 in
   `docs/plans/paid-tier-plan.md`; market research in `docs/market-research/`.
-- Pending on this side for Pro P2: publish `@teemtape/api-client` ≥ 0.1.5
-  (npm still has 0.1.4, without `whoami`), set `VITE_DASHBOARD_URL` for
-  production web, enable the binding, and add a `repository_dispatch`
-  (`teemtape-released`) to `tag-release.yml` for the private repo.
+- v1.0.0 is tagged and released on GitHub but **not on npm** (npm still has
+  0.1.4, without `whoami`): the old npm automation token was rejected. Once
+  trusted publishing is configured on npmjs.com, re-run `tag-release.yml`
+  with `tag: v1.0.0`. Then for Pro P2: set `VITE_DASHBOARD_URL` for
+  production web and enable the binding (the `teemtape-released` dispatch is
+  already in `tag-release.yml`).
 
 ## How to pick up work
 
