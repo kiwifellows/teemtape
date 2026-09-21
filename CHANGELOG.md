@@ -1,3 +1,7 @@
+## [v1.0.1] - 2026-09-21
+
+- Maintenance release.
+
 ## [v1.0.0] - 2026-09-19
 
 - Skill update with correct package name ([#24](https://github.com/kiwifellows/teemtape/pull/24)) (@kiwifellows)

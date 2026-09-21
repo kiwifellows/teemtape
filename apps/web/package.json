@@ -1,6 +1,6 @@
 {
   "name": "@teemtape/web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "teemtape desktop web app — watchlist, delayed quotes, anonymous notes.",
   "license": "MIT",
@@ -15,7 +15,7 @@
     "deploy": "wrangler pages deploy dist --project-name teemtape-web --branch main"
   },
   "dependencies": {
-    "@teemtape/api-client": "^1.0.0",
+    "@teemtape/api-client": "^1.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.6.0"
