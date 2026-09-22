@@ -4,7 +4,8 @@
 # Required environment variables:
 #   PKG             npm package name (e.g. "@teemtape/cli")
 #   VERSION         version expected to be published (e.g. "1.2.3")
-#   NODE_AUTH_TOKEN npm auth token (provided by setup-node via .npmrc)
+#
+# Auth is npm Trusted Publishing (OIDC) — no token; see tag-release.yml.
 #
 # If PKG@VERSION already exists on the registry the publish is skipped, which
 # makes the release workflow safe to re-run.
