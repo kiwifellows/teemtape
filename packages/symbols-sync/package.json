@@ -1,6 +1,6 @@
 {
   "name": "@teemtape/symbols-sync",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "teemtape symbols pipeline: fetch exchange listings → teemtape.symbol.v1 NDJSON → D1 import SQL.",
   "license": "MIT",
@@ -18,7 +18,7 @@
     "start": "node dist/cli.js"
   },
   "dependencies": {
-    "@teemtape/api-client": "^1.0.1",
+    "@teemtape/api-client": "^1.0.2",
     "commander": "^12.1.0"
   },
   "devDependencies": {
