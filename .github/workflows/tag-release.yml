@@ -12,9 +12,12 @@ name: Tag and release
 #   3. Publishes @teemtape/api-client and @teemtape/cli to npm (with provenance),
 #      api-client first because the CLI depends on it.
 #
-# The release is keyed off the @teemtape/cli package version: when that version
-# has no matching `v<version>` tag yet, this workflow cuts it. Normal merges that
-# don't bump the version are no-ops because the tag already exists.
+# The release is keyed off the @teemtape/cli package version. The tag and the
+# GitHub release are cut when `v<version>` does not exist yet; the npm publish
+# runs whenever npm lacks that version of either package. So a merge that does
+# not bump the version is a no-op (tag exists, npm is current), while "Re-run
+# failed jobs" on a run that died at the npm step picks up where it stopped:
+# tag and release are left alone and only the missing package(s) are published.
 #
 # npm auth is npm Trusted Publishing (OIDC): no token secret. Each package on
 # npmjs.com must list this repo + `tag-release.yml` (+ environment `release`) as
@@ -22,10 +25,9 @@ name: Tag and release
 # long-lived automation tokens can no longer publish, which is why the old
 # NPM_PACKAGE_TOKEN path was dropped.
 #
-# Re-publishing: if the npm step fails after the tag and release already exist
-# (the push trigger then no-ops because the tag exists), run this workflow
-# manually with `tag` set to that tag. It checks the tag out, builds, and
-# publishes whichever of the two packages npm does not have yet.
+# Older tags: the manual `tag` input publishes any existing tag that npm is
+# missing (checks the tag out, builds, publishes what is absent), for versions
+# whose original run is too old to re-run.
 
 on:
   push:
@@ -36,7 +38,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag to (re)publish to npm, e.g. v1.0.0. Skips tagging and the GitHub release."
+        description: "Existing release tag to publish to npm, e.g. v1.0.0. Publishes whichever packages npm lacks; never re-tags."
         type: string
         required: true
 
@@ -81,26 +83,47 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p "require('./packages/cli/package.json').version")"
           TAG="v$VERSION"
-          if [ -n "$INPUT_TAG" ]; then
-            # Manual re-publish of an existing tag: the checkout above already
-            # failed if the tag does not exist. Guard against a tag whose
-            # package.json disagrees with its name.
-            if [ "$INPUT_TAG" != "$TAG" ]; then
-              echo "::error::Tag $INPUT_TAG contains @teemtape/cli version $VERSION (expected ${INPUT_TAG#v})."
-              exit 1
-            fi
-            echo "Re-publishing $TAG to npm (tag and GitHub release left as they are)."
-            echo "cut=false" >> "$GITHUB_OUTPUT"
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          elif git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists — nothing to release."
-            echo "cut=false" >> "$GITHUB_OUTPUT"
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "New version detected: $VERSION (tag $TAG)"
-            echo "cut=true" >> "$GITHUB_OUTPUT"
-            echo "publish=true" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$INPUT_TAG" ] && [ "$INPUT_TAG" != "$TAG" ]; then
+            # Manual run: the checkout already failed if the tag does not exist;
+            # guard against a tag whose package.json disagrees with its name.
+            echo "::error::Tag $INPUT_TAG contains @teemtape/cli version $VERSION (expected ${INPUT_TAG#v})."
+            exit 1
           fi
+
+          # Cut the tag + GitHub release only when the tag is new.
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            CUT=false
+          else
+            CUT=true
+          fi
+
+          # Publish when npm lacks this version of either package. Decided
+          # here (not just by the tag) so a re-run after a failed npm step still
+          # publishes; scripts/npm-publish.sh skips each package npm already has.
+          PUBLISH=$CUT
+          for PKG in @teemtape/api-client @teemtape/cli; do
+            if npm view "$PKG@$VERSION" version >/dev/null 2>&1; then
+              echo "$PKG@$VERSION is on npm."
+            else
+              echo "$PKG@$VERSION is not on npm yet."
+              PUBLISH=true
+            fi
+          done
+
+          if [ "$CUT" = true ]; then
+            echo "New version detected: $VERSION (tag $TAG)"
+          elif [ "$PUBLISH" = true ]; then
+            echo "Tag $TAG already exists — publishing what npm is missing from that tag."
+            # `main` may have moved on since the tag was cut; publish the
+            # tagged source, not whatever main is now.
+            git checkout -q "$TAG"
+          else
+            echo "Tag $TAG already exists and npm is current — nothing to release."
+          fi
+
+          echo "cut=$CUT" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
@@ -224,7 +247,7 @@ jobs:
             if [ "${{ steps.version.outputs.cut }}" = "true" ]; then
               echo "- GitHub release: downloadable from the Releases page"
             else
-              echo "- GitHub release: unchanged (manual re-publish)"
+              echo "- GitHub release: already existed (re-publish)"
             fi
             echo "- Published: \`@teemtape/api-client\`, \`@teemtape/cli\`"
           } >> "$GITHUB_STEP_SUMMARY"
