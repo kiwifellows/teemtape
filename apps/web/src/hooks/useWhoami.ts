@@ -5,6 +5,8 @@ import { useApi } from "../context/ApiContext";
 export interface Whoami {
   /** Undefined while loading; null when anonymous or when no Pro app is configured. */
   user: { handle: string } | null | undefined;
+  /** The signed-in caller's most recently saved list, when the Pro app tracks one. */
+  lastWatchlist: { token: string; name: string | null } | null;
   dashboardUrl: string | undefined;
 }
 
@@ -17,6 +19,7 @@ export function useWhoami(): Whoami {
   const client = useApi();
   const dashboardUrl = getDashboardUrl();
   const [user, setUser] = useState<Whoami["user"]>(dashboardUrl ? undefined : null);
+  const [lastWatchlist, setLastWatchlist] = useState<Whoami["lastWatchlist"]>(null);
 
   useEffect(() => {
     if (!dashboardUrl) return;
@@ -24,7 +27,9 @@ export function useWhoami(): Whoami {
     client
       .whoami()
       .then((res) => {
-        if (!cancelled) setUser(res.user);
+        if (cancelled) return;
+        setUser(res.user);
+        setLastWatchlist(res.lastWatchlist ?? null);
       })
       .catch(() => {
         if (!cancelled) setUser(null);
@@ -34,5 +39,5 @@ export function useWhoami(): Whoami {
     };
   }, [client, dashboardUrl]);
 
-  return { user, dashboardUrl };
+  return { user, lastWatchlist, dashboardUrl };
 }

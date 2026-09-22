@@ -55,7 +55,7 @@ describe("authz hook", () => {
 
     it("identifies nobody", async () => {
       const req = new Request("https://api.test/api/whoami", { headers: asAlice });
-      await expect(identify(req, unbound)).resolves.toBeNull();
+      await expect(identify(req, unbound)).resolves.toEqual({ user: null, lastWatchlist: null });
     });
   });
 
@@ -191,9 +191,34 @@ describe("authz hook", () => {
 
   describe("whoami and created", () => {
     it("reports the caller's handle, or null when anonymous", async () => {
-      expect(await (await get("/api/whoami")).json()).toEqual({ user: null });
-      expect(await (await get("/api/whoami", asAlice)).json()).toEqual({ user: { handle: "alice" } });
-      expect(await (await get("/api/whoami", asBobCookie)).json()).toEqual({ user: { handle: "bob" } });
+      expect(await (await get("/api/whoami")).json()).toEqual({ user: null, lastWatchlist: null });
+      expect(await (await get("/api/whoami", asAlice)).json()).toEqual({
+        user: { handle: "alice" },
+        lastWatchlist: null,
+      });
+      expect(await (await get("/api/whoami", asBobCookie)).json()).toEqual({
+        user: { handle: "bob" },
+        lastWatchlist: null,
+      });
+    });
+
+    it("passes through the caller's most recently saved list", async () => {
+      const token = await newList(asAlice);
+      await control("/__last", { handle: "alice", token, name: "Energy" });
+      expect(await (await get("/api/whoami", asAlice)).json()).toEqual({
+        user: { handle: "alice" },
+        lastWatchlist: { token, name: "Energy" },
+      });
+      // Anonymous callers never get one, even when the handle has a list.
+      expect(await (await get("/api/whoami")).json()).toEqual({ user: null, lastWatchlist: null });
+    });
+
+    it("ignores a last list that is not a watchlist token", async () => {
+      await control("/__last", { handle: "alice", token: "../../etc/passwd" });
+      expect(await (await get("/api/whoami", asAlice)).json()).toEqual({
+        user: { handle: "alice" },
+        lastWatchlist: null,
+      });
     });
 
     it("notifies the authorisation service when a signed-in caller creates a list", async () => {

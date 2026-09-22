@@ -32,6 +32,10 @@ The first time you open `/`, teemtape generates a fresh watchlist and sends you
 to `/w/<token>`. Bookmark that URL (or use the share bar) to come back to the
 same list later.
 
+If you are signed in to teemtape Pro, `/` opens the list you saved most
+recently instead of making another one. Use **New link** on any watchlist to
+start a fresh one.
+
 ## The watchlist table
 
 The main view is a table of the symbols on your watchlist with their **delayed

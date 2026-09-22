@@ -64,6 +64,7 @@ interface AuthzResponse {
   user?: { handle: string };
   reason?: 'sign_in_required' | 'forbidden';   // when allow = false
   grants?: ('view' | 'add_symbol' | 'post_note' | 'manage')[];  // optional, see below
+  last_watchlist?: { token: string; name?: string };            // `identify` only, optional
 }
 ```
 
@@ -82,8 +83,18 @@ interface AuthzResponse {
 - `reason` drives the HTTP status the public API returns: `sign_in_required`
   → **401**, `forbidden` → **403**. If omitted, the public API uses 401 for
   callers with no credential and 403 otherwise.
-- For `identify`, only `allow` and `user` matter; `user` absent → anonymous.
+- For `identify`, only `allow`, `user` and `last_watchlist` matter; `user`
+  absent → anonymous.
 - For `created`, the response is ignored.
+
+- `last_watchlist` (optional, additive in v1) is the caller's **most recently
+  saved list** — the authoriser decides what "most recent" means, since it is
+  the only side that knows about saved lists. The public API validates the
+  token shape and passes it through on `GET /api/whoami` as `lastWatchlist`
+  (`null` when absent or anonymous). The web app uses it so that a signed-in
+  visitor to `/` lands on the list they were last on, instead of minting a new
+  one every time and littering the account with empty lists. Authorisers that
+  don't send it keep today's behaviour: `/` always creates.
 
 A non-2xx status, a malformed body, or a timeout (`AUTHZ_TIMEOUT_MS`, default
 250 ms) is treated as a service failure — see resilience.
@@ -177,6 +188,7 @@ API will only ever send one version per release, documented here.
   `vitest.config.ts`, with control endpoints to make a list private, add
   members, or simulate failure.
 - **Clients**: the mock server (`npm run mock`) accepts
-  `MOCK_PRIVATE_TOKENS=<token,…>`, `MOCK_ACCESS_TOKEN` (default `mock-pat`)
-  and `MOCK_SIGN_IN_URL`, and then answers 401/403/`whoami` the way the
-  hosted API would.
+  `MOCK_PRIVATE_TOKENS=<token,…>`, `MOCK_ACCESS_TOKEN` (default `mock-pat`),
+  `MOCK_SIGN_IN_URL`, and `MOCK_LAST_WATCHLIST=<token>[:<name>]` (the saved
+  list `whoami` reports to signed-in callers), and then answers
+  401/403/`whoami` the way the hosted API would.

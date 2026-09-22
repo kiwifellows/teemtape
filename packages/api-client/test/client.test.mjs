@@ -129,7 +129,7 @@ test("client sends a bearer access token and surfaces authorisation denials", as
     assert.equal(err.signInUrl, "https://app.test");
     return true;
   });
-  assert.deepEqual(await anon.whoami(), { user: null });
+  assert.deepEqual(await anon.whoami(), { user: null, lastWatchlist: null });
 
   // wrong token → 403 forbidden
   const wrong = new TeemtapeClient({ baseUrl, token: seeded, accessToken: "nope" });
@@ -138,7 +138,7 @@ test("client sends a bearer access token and surfaces authorisation denials", as
   // right token → through, and whoami knows us
   const ok = new TeemtapeClient({ baseUrl, token: seeded, accessToken: "pat-1" });
   assert.equal((await ok.getWatchlist()).token, seeded);
-  assert.deepEqual(await ok.whoami(), { user: { handle: "mockuser" } });
+  assert.deepEqual(await ok.whoami(), { user: { handle: "mockuser" }, lastWatchlist: null });
 
   // a plain 404 is not an access denial
   await assert.rejects(new TeemtapeClient({ baseUrl, token: "0".repeat(32) }).getWatchlist(), (err) => {
@@ -147,4 +147,21 @@ test("client sends a bearer access token and surfaces authorisation denials", as
     assert.equal(err.reason, undefined);
     return true;
   });
+});
+
+test("whoami reports the signed-in caller's most recently saved list", async (t) => {
+  const last = "6f1ed002ab5595859014ebf0951522d9";
+  const server = createMockServer({ authz: { accessToken: "pat-1", lastWatchlist: `${last}:Energy` } });
+  server.listen(0);
+  await once(server, "listening");
+  const baseUrl = `http://localhost:${server.address().port}`;
+  t.after(() => server.close());
+
+  // The web app opens this instead of creating a list on every visit to "/".
+  assert.deepEqual(await new TeemtapeClient({ baseUrl, accessToken: "pat-1" }).whoami(), {
+    user: { handle: "mockuser" },
+    lastWatchlist: { token: last, name: "Energy" },
+  });
+  // Anonymous callers have no account, so there is nothing to go back to.
+  assert.deepEqual(await new TeemtapeClient({ baseUrl }).whoami(), { user: null, lastWatchlist: null });
 });
