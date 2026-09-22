@@ -1,6 +1,6 @@
 {
   "name": "@teemtape/api",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "private": true,
   "description": "teemtape Cloudflare Worker API (quotes proxy + anonymous notes on D1).",
   "license": "MIT",
@@ -15,7 +15,7 @@
     "migrate:remote": "wrangler d1 migrations apply teemtape-db --remote"
   },
   "dependencies": {
-    "@teemtape/api-client": "^1.0.3"
+    "@teemtape/api-client": "^1.1.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.16.16",
