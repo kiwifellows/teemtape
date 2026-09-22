@@ -1,3 +1,7 @@
+## [v1.1.0] - 2026-09-22
+
+- Open a signed-in user's last saved watchlist from / ([#48](https://github.com/kiwifellows/teemtape/pull/48)) (@kiwifellows)
+
 ## [v1.0.3] - 2026-09-22
 
 - Maintenance release.
