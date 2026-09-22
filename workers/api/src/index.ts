@@ -100,7 +100,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
   // GET /api/whoami — who is the caller, according to the (optional) authorisation service.
   if (path === "/api/whoami" && method === "GET") {
-    return json({ user: await identify(request, env) });
+    return json(await identify(request, env));
   }
 
   // POST /api/handles — claim a handle (body.handle) or generate a unique one.

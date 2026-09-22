@@ -53,7 +53,9 @@ seams:
   the raw `Cookie` header (browser), forwarded opaque — this repo never
   parses them.
 - Clients already understand the hook: `api-client` (`accessToken`,
-  `whoami()`, `ApiError.accessDenied`), CLI (`teemtape login`,
+  `whoami()` — which also reports `lastWatchlist`, the saved list the web
+  app's `/` opens for a signed-in user instead of creating a new one),
+  CLI (`teemtape login`,
   `TEEMTAPE_ACCESS_TOKEN`), web (private-list panel and sign-in state, only
   when `VITE_DASHBOARD_URL` is set), mock server (`MOCK_PRIVATE_TOKENS`).
 - Wiring state: hook code is deployed; the production binding is

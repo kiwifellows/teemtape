@@ -31,6 +31,9 @@ function send(res, status, body) {
  *                         anonymous (default: signed in, not a member), viewer,
  *                         commenter, editor, owner
  *   MOCK_SIGN_IN_URL      returned as `signInUrl` (default http://localhost:5174)
+ *   MOCK_LAST_WATCHLIST   token (optionally "token:Name") reported to signed-in
+ *                         callers as their most recently saved list, so the web
+ *                         app's home page opens it instead of creating one
  *
  * Everything else is anonymous and bound by the link. `whoami` reports
  * `mockuser` for the owner token and `visitor` for the session cookie.
@@ -48,6 +51,8 @@ export function createAuthzSim(options = {}) {
   const accessToken = options.accessToken ?? process.env.MOCK_ACCESS_TOKEN ?? "mock-pat";
   const sessionRole = options.sessionRole ?? process.env.MOCK_SESSION_ROLE ?? "anonymous";
   const signInUrl = options.signInUrl ?? process.env.MOCK_SIGN_IN_URL ?? "http://localhost:5174";
+  const [lastToken, lastName] = (options.lastWatchlist ?? process.env.MOCK_LAST_WATCHLIST ?? "").split(":");
+  const lastWatchlist = lastToken ? { token: lastToken.trim(), name: lastName?.trim() || null } : null;
 
   const ROLE_GRANTS = {
     owner: ["view", "add_symbol", "post_note", "manage"],
@@ -109,8 +114,10 @@ export function createAuthzSim(options = {}) {
         user: d.user,
       };
     },
+    /** `GET /api/whoami`: who the caller is, and where they were last. */
     whoami(req) {
-      return caller(req).user;
+      const user = caller(req).user;
+      return { user, lastWatchlist: user ? lastWatchlist : null };
     },
   };
 }
@@ -207,7 +214,7 @@ export function createMockServer(options = {}) {
     }
 
     if (path === "/api/whoami" && method === "GET") {
-      return send(res, 200, { user: authz.whoami(req) });
+      return send(res, 200, authz.whoami(req));
     }
 
     if (path === "/api/watchlists" && method === "POST") {

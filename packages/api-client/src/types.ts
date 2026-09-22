@@ -184,4 +184,10 @@ export interface AccessDeniedBody {
 export interface WhoamiResponse {
   /** The signed-in caller, or null when anonymous / no authorisation hook. */
   user: { handle: string } | null;
+  /**
+   * The caller's most recently saved watchlist, when the hosted service tracks
+   * them for this account. Null when anonymous, when there is no hook, or when
+   * the account has saved none yet. Optional so older APIs still typecheck.
+   */
+  lastWatchlist?: { token: string; name: string | null } | null;
 }

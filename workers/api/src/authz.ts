@@ -38,6 +38,8 @@ export interface AuthzResponse {
   reason?: "sign_in_required" | "forbidden";
   /** Every list action this caller may perform here (optional, additive). */
   grants?: ListAction[];
+  /** `identify` only: the caller's most recently saved list (optional, additive). */
+  last_watchlist?: { token: string; name?: string };
 }
 
 export type ListAction = Exclude<AuthzAction, "created" | "identify">;
@@ -208,17 +210,38 @@ export async function authorize(
   return { role: result.role ?? "anonymous", linkAccess, user: result.user, grants: grantsOf(result, linkAccess) };
 }
 
-/** Who is the caller? `null` when anonymous or when no AUTHZ binding is configured. */
-export async function identify(request: Request, env: Env): Promise<{ handle: string } | null> {
-  if (!env.AUTHZ) return null;
+/** What `GET /api/whoami` reports about the caller. */
+export interface Identity {
+  user: { handle: string } | null;
+  /**
+   * The caller's most recently saved watchlist, when the authoriser tracks
+   * them. The API neither stores nor orders these — it only passes the
+   * answer through, so the web app can open the list you were last on
+   * instead of minting a fresh one on every visit to the home page.
+   */
+  lastWatchlist: { token: string; name: string | null } | null;
+}
+
+const ANONYMOUS: Identity = { user: null, lastWatchlist: null };
+
+/** A list reference is only worth passing on if it is a real token shape. */
+function asLastWatchlist(raw: AuthzResponse["last_watchlist"]): Identity["lastWatchlist"] {
+  if (!raw || typeof raw.token !== "string" || !/^[0-9a-f]{32}$/.test(raw.token)) return null;
+  return { token: raw.token, name: typeof raw.name === "string" ? raw.name : null };
+}
+
+/** Who is the caller? Anonymous when there is no credential or no AUTHZ binding. */
+export async function identify(request: Request, env: Env): Promise<Identity> {
+  if (!env.AUTHZ) return ANONYMOUS;
   const credential = extractCredential(request);
-  if (!credential) return null;
+  if (!credential) return ANONYMOUS;
   try {
     const result = await callAuthz(env, { v: AUTHZ_CONTRACT_VERSION, action: "identify", credential });
-    return result.user ?? null;
+    if (!result.user) return ANONYMOUS;
+    return { user: result.user, lastWatchlist: asLastWatchlist(result.last_watchlist) };
   } catch (err) {
     console.error("AUTHZ identify failed", err);
-    return null;
+    return ANONYMOUS;
   }
 }
 

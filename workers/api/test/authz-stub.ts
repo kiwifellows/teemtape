@@ -7,6 +7,7 @@
  *   - bearer `pat-<handle>` and cookie `session=<handle>` identify <handle>
  *   - a list is `public-edit` with no members unless `/__set` says otherwise
  *   - `delayMs` / `fail` on a list simulate a slow or broken service
+ *   - `/__last` gives a handle a "most recently saved" list for `identify`
  *
  * Unknown lists are public, so the existing API tests run unchanged with the
  * binding present — which is exactly how the real pro API behaves.
@@ -39,6 +40,8 @@ const LINK_GRANTS: Record<LinkAccess, string[]> = {
 
 const lists = new Map<string, ListState>();
 const created: Array<{ token: string; handle: string }> = [];
+/** handle → the list `identify` reports as their most recently saved one. */
+const lastWatchlists = new Map<string, { token: string; name?: string }>();
 
 function handleFromCredential(credential?: { type: string; value: string }): string | undefined {
   if (!credential) return undefined;
@@ -57,6 +60,11 @@ export async function authzStub(request: Request): Promise<Response> {
   if (path === "/__reset") {
     lists.clear();
     created.length = 0;
+    lastWatchlists.clear();
+    return json({ ok: true });
+  }
+  if (path === "/__last") {
+    lastWatchlists.set(body.handle as string, { token: body.token as string, name: body.name as string | undefined });
     return json({ ok: true });
   }
   if (path === "/__set") {
@@ -78,7 +86,8 @@ export async function authzStub(request: Request): Promise<Response> {
   const handle = handleFromCredential(credential);
 
   if (action === "identify") {
-    return json(handle ? { allow: true, user: { handle } } : { allow: false, reason: "sign_in_required" });
+    if (!handle) return json({ allow: false, reason: "sign_in_required" });
+    return json({ allow: true, user: { handle }, last_watchlist: lastWatchlists.get(handle) });
   }
   if (action === "created") {
     if (token && handle) created.push({ token, handle });
