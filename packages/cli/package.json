@@ -1,6 +1,6 @@
 {
   "name": "@teemtape/cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "teemtape CLI — list stocks and post anonymous notes from the terminal.",
   "license": "MIT",
   "author": "Benjamin Fellows",
@@ -28,7 +28,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@teemtape/api-client": "^1.0.2",
+    "@teemtape/api-client": "^1.0.3",
     "commander": "^12.1.0",
     "undici": "^7.28.0"
   },
